@@ -1,0 +1,18 @@
+[
+  {
+    "code": "doku",
+    "name": "Doku",
+    "country": [
+      "Indonesia"
+    ]
+  },
+  {
+    "code": "adyen",
+    "name": "Adyen",
+    "country": [
+      "India",
+      "Malaysia",
+      "Indonesia"
+    ]
+  }
+]

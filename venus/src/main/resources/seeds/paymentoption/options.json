@@ -1,0 +1,101 @@
+[
+  {
+    "type": "cc",
+    "name": "Credit Card",
+    "methods": [
+      {
+        "name": "Visa",
+        "code": "VI",
+        "acceptPartial": true,
+        "minimumAmount": 0,
+        "maximumAmount": 10,
+        "financialInstitution": "",
+        "issuedBy": "BNI",
+        "platforms": [
+          "android",
+          "ios",
+          "web",
+          "mobile"
+        ],
+        "currencies": [
+          "MYR",
+          "IDR",
+          "USD"
+        ],
+        "roles": [
+          "Anonymous",
+          "Onymous"
+        ],
+        "gateway": {
+          "name": "Adyen Gateway",
+          "attributes": {
+            "key": "UEYOIEHUCBGU"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "type": "dd",
+    "name": "Online Banking",
+    "methods": [
+      {
+        "name": "Visa",
+        "code": "VI"
+      }
+    ]
+  },
+  {
+    "type": "wll",
+    "name": "Wallet",
+    "methods": [
+      {
+        "name": "Virtual Account",
+        "code": "VIRAC",
+        "platforms": [
+          "android",
+          "ios",
+          "web"
+        ],
+        "currencies": [
+          "MYR",
+          "IDR",
+          "USD"
+        ]
+      },
+      {
+        "name": "Paypal",
+        "code": "PAYPAL",
+        "platforms": [
+          "android",
+          "ios",
+          "web"
+        ],
+        "currencies": [
+          "MYR",
+          "IDR",
+          "USD"
+        ]
+      },
+      {
+        "name": "Gopay",
+        "code": "GOPAY",
+        "platforms": [
+          "android",
+          "ios",
+          "web"
+        ],
+        "currencies": [
+          "MYR",
+          "IDR",
+          "USD"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cod",
+    "name": "Cash On Delivery",
+    "methods": []
+  }
+]

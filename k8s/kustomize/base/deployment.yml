@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: dashboard-service
+  template:
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: dashboard-container
+          envFrom:
+            - configMapRef:
+                name: dashboard
+          # start - load env from secrets
+          env:
+            # DB secrets
+            - name: MYSQL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: dashboard
+                  key: MYSQL_HOST
+            - name: MYSQL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: dashboard
+                  key: MYSQL_USERNAME
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dashboard
+                  key: MYSQL_PASSWORD
+#            # Cache
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: dashboard
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: dashboard
+                  key: REDIS_PORT
+          # end - load env from secrets
+          image: IMAGE_PLACEHOLDER
+          resources:
+            limits:
+              memory: 1Gi
+              cpu: 500m
+            requests:
+              memory: 512Mi
+              cpu: 150m
+#          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+#          readinessProbe:
+#            httpGet:
+#              path: /
+#              port: 8080
+#            initialDelaySeconds: 10
+#            periodSeconds: 5
+#            successThreshold: 1

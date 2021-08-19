@@ -1,0 +1,73 @@
+[
+  {
+    "acceptPartial": true,
+    "invoiceRefNum": "1/XXX/90/1-MAMA01",
+    "products": [
+      {
+        "name": "Leanne Graham",
+        "quantity": 1,
+        "price": 100,
+        "totalPrice": 100,
+        "currency": "IDR",
+        "sku": "1-0000-90900"
+      }
+    ],
+    "productsFulfilled": [
+      {
+        "productId": 1,
+        "quantitiesDeliver": 1,
+        "quantitiesReject": 0
+      }
+    ],
+    "buyer": {
+      "name": "Masykuri Syaifullah",
+      "username": "msyaifullah",
+      "email": "msyaifullah@gmail.com",
+      "phone": "6281333888444"
+    },
+    "recipient": {
+      "name": "Masykuri Syaifullah",
+      "username": "msyaifullah",
+      "email": "msyaifullah@gmail.com",
+      "phone": "6281333888444"
+    }
+  },
+  {
+    "acceptPartial": true,
+    "invoiceRefNum": "1/XXX/90/1-MAMA01",
+    "products": [
+      {
+        "name": "Leanne Graham",
+        "quantity": 1,
+        "price": 100,
+        "totalPrice": 100,
+        "currency": "IDR",
+        "sku": "1-0000-90900"
+      }
+    ],
+    "productsFulfilled": [
+      {
+        "productId": 1,
+        "quantitiesDeliver": 1,
+        "quantitiesReject": 0
+      },
+      {
+        "productId": 2,
+        "quantitiesDeliver": 2,
+        "quantitiesReject": 0
+      }
+    ],
+    "buyer": {
+      "name": "Masykuri Syaifullah",
+      "username": "moss",
+      "email": "moss@beda.id",
+      "phone": "6281333888444"
+    },
+    "recipient": {
+      "name": "Masykuri Syaifullah",
+      "username": "moss",
+      "email": "moss@beda.id",
+      "phone": "6281333888444"
+    }
+  }
+]

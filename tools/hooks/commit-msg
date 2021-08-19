@@ -1,0 +1,35 @@
+#!/bin/sh
+# https://www.digitalocean.com/community/tutorials/how-to-use-git-hooks-to-automate-development-and-deployment-tasks
+NC='\033[0m' # No Color
+RED='\033[0;31m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+
+COMMIT_FILE=$1
+COMMIT_MSG=$(cat ${COMMIT_FILE})
+
+COMMIT_MSG_REGEX="^(revert|feat|fix|merge|docs|style|refactor|perf|test|chore|build|ci):"
+if [[ ! ${COMMIT_MSG} =~ ${COMMIT_MSG_REGEX} ]]; then
+    echo  "\nPlease change your commit message to the format bellow"
+    echo  "\n${GREEN}[PREFIX]:  message   ${NC}(ex fix: fixing bug in LIFE-001)"
+    echo  "\nList prefix commit message: "
+    echo  "${GREEN}revert     ${NC}Reverts a previous commit"
+    echo  "${GREEN}feat       ${NC}Added a new feature"
+    echo  "${GREEN}fix        ${NC}Fix a bug (refactoring production code)"
+    echo  "${GREEN}merge      ${NC}Merge a branch to designated branch (develop|master)"
+    echo  "${GREEN}docs       ${NC}Documentation change (add, update etc; no code change)"
+    echo  "${GREEN}style      ${NC}Code style change that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)"
+    echo  "${GREEN}refactor   ${NC}A code change that neither fixes a bug nor adds a feature (refactoring production code)"
+    echo  "${GREEN}perf       ${NC}A code change that improves performance"
+    echo  "${GREEN}test       ${NC}Adding missing tests or correcting existing tests (adding missing tests, refactoring tests; no production code change)"
+    echo  "${GREEN}chore      ${NC}Other changes that don't modify src or test files (updating tasks etc; no production code change)"
+    echo  "${GREEN}build      ${NC}Changes that affect the build system or external dependencies (example scopes: gulp, broccoli, npm)"
+    echo  "${GREEN}ci         ${NC}Changes to our CI configuration files and scripts (example scopes: Travis, Circle, BrowserStack, SauceLabs)"
+    exit 1
+fi
+
+read -ra COMMIT_MSG_ARR <<< ${COMMIT_MSG}
+if [[ ${#COMMIT_MSG_ARR[@]} -le 3 ]]; then
+    echo  "${RED}Please write meaningfull commit message${NC}"
+    exit 1
+fi

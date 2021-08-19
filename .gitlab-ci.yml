@@ -1,0 +1,153 @@
+stages:
+  - test
+  - build
+  - publish
+  - deploy
+
+variables:
+  GCP_IMAGE_DEV: gcr.io/eegs-dev/dashboard-service
+  GCP_PROJECT_DEV: eegs-dev
+  GKE_CLUSTER_DEV: k8s-tfdev-8rfa
+  GCP_IMAGE_STG: gcr.io/eegs-stg/dashboard-service
+  GCP_PROJECT_STG: eegs-stg
+  GKE_CLUSTER_STG:  k8s-tfstg-qg0d
+  GCP_IMAGE_PPD: gcr.io/eegs-ppd/dashboard-service
+  GCP_PROJECT_PPD: eegs-ppd
+  GKE_CLUSTER_PPD:  k8s-tfppd-8hvg
+  GCP_IMAGE_PRD: gcr.io/eegs-prd/dashboard-service
+  GCP_PROJECT_PRD: eegs-prd
+  GKE_CLUSTER_PRD: k8s-tfprd-0jxs
+maven_test:
+  image:
+    name: maven:3.6.0-jdk-11-slim
+  stage: test
+  allow_failure: false
+  script: mvn clean test
+  when: manual
+
+# mvn prebuild test
+maven_build:
+  image:
+    name: maven:3.6.0-jdk-11-slim
+  stage: build
+  allow_failure: false
+  script:
+    - mvn clean package
+  artifacts:
+    paths:
+      - /builds/payments/dashboard-service/target
+    expire_in: 1 week
+  dependencies:
+    - maven_test
+
+Build and Publish Docker Image:
+  stage: publish
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  allow_failure: false
+  script:
+    - echo $CI_COMMIT_SHA
+    - echo $CI_PIPELINE_IID
+    - echo build docker
+    - export GOOGLE_APPLICATION_CREDENTIALS=$GCLOUD_SA_KEY_DEV
+    - /kaniko/executor --skip-tls-verify --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $GCP_IMAGE_DEV:$CI_COMMIT_SHA-$CI_PIPELINE_IID
+  dependencies:
+    - maven_build
+
+Deploy to DEV:
+  variables:
+    ENVIRONMENT: dev
+  image: gcr.io/cloud-builders/kubectl
+  stage: deploy
+  allow_failure: false
+  script:
+    - echo deploy to DEV
+    - gcloud auth activate-service-account --key-file $GCLOUD_SA_KEY_DEV
+    - apt-get update && apt-get install gettext-base -y && apt-get install -y make docker.io
+    - curl -sLO https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.5.4/kustomize_v3.5.4_linux_amd64.tar.gz
+    - tar zxvf kustomize_v3.5.4_linux_amd64.tar.gz && mv ./kustomize /usr/bin
+    - gcloud container clusters get-credentials $GKE_CLUSTER_DEV --region asia-southeast1 --project $GCP_PROJECT_DEV
+    - echo $GCP_IMAGE_DEV:$CI_COMMIT_SHA-$CI_PIPELINE_IID
+    - kustomize build k8s/kustomize/overrides/dev | sed "s|IMAGE_PLACEHOLDER|\"$GCP_IMAGE_DEV:$CI_COMMIT_SHA-$CI_PIPELINE_IID\"|g" | kubectl apply -f -
+  environment:
+    name: development
+  needs:
+    - Build and Publish Docker Image
+
+Deploy to STG:
+  variables:
+    ENVIRONMENT: stg
+  image: gcr.io/cloud-builders/kubectl
+  stage: deploy
+  allow_failure: false
+  script:
+    - echo deploy to stg
+    - gcloud auth activate-service-account --key-file $GCLOUD_SA_KEY_STG
+    - gcloud container images add-tag ${GCP_IMAGE_DEV}:${CI_COMMIT_SHA}-${CI_PIPELINE_IID} ${GCP_IMAGE_STG}:${CI_COMMIT_SHA}-${CI_PIPELINE_IID} --quiet
+    - apt-get update && apt-get install gettext-base -y && apt-get install -y make docker.io
+    - curl -sLO https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.5.4/kustomize_v3.5.4_linux_amd64.tar.gz
+    - tar zxvf kustomize_v3.5.4_linux_amd64.tar.gz && mv ./kustomize /usr/bin
+    - gcloud container clusters get-credentials $GKE_CLUSTER_STG --region asia-southeast1 --project $GCP_PROJECT_STG
+    - echo $GCP_IMAGE_STG:$CI_COMMIT_SHA-$CI_PIPELINE_IID
+    - kustomize build k8s/kustomize/overrides/stg | sed "s|IMAGE_PLACEHOLDER|\"$GCP_IMAGE_STG:$CI_COMMIT_SHA-$CI_PIPELINE_IID\"|g" | kubectl apply -f -
+  environment:
+    name: staging
+  needs:
+    - Build and Publish Docker Image
+  when: manual
+  only:
+    - staging-branch
+    - develop
+    - master
+
+Deploy to PPD:
+  variables:
+    ENVIRONMENT: ppd
+  image: gcr.io/cloud-builders/kubectl
+  stage: deploy
+  allow_failure: false
+  script:
+    - echo deploy to ppd
+    - gcloud auth activate-service-account --key-file $GCLOUD_SA_KEY_PPD
+    - gcloud container images add-tag ${GCP_IMAGE_STG}:${CI_COMMIT_SHA}-${CI_PIPELINE_IID} ${GCP_IMAGE_PPD}:${CI_COMMIT_SHA}-${CI_PIPELINE_IID} --quiet
+    - apt-get update && apt-get install gettext-base -y && apt-get install -y make docker.io
+    - curl -sLO https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.5.4/kustomize_v3.5.4_linux_amd64.tar.gz
+    - tar zxvf kustomize_v3.5.4_linux_amd64.tar.gz && mv ./kustomize /usr/bin
+    - gcloud container clusters get-credentials $GKE_CLUSTER_PPD --region asia-southeast1-a --project $GCP_PROJECT_PPD
+  environment:
+    name: pre-production
+  needs:
+    - Build and Publish Docker Image
+  when: manual
+  only:
+    - staging-branch
+    - master
+
+Deploy to PRD:
+  variables:
+    ENVIRONMENT: prd
+  image: gcr.io/cloud-builders/kubectl
+  stage: deploy
+  allow_failure: false
+  script:
+    - echo deploy to prd
+    - gcloud auth activate-service-account --key-file $GCLOUD_SA_KEY_PRD
+    - gcloud container images add-tag ${GCP_IMAGE_PPD}:${CI_COMMIT_SHA}-${CI_PIPELINE_IID} ${GCP_IMAGE_PRD}:${CI_COMMIT_SHA}-${CI_PIPELINE_IID} --quiet
+    - apt-get update && apt-get install gettext-base -y && apt-get install -y make docker.io
+    - curl -sLO https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.5.4/kustomize_v3.5.4_linux_amd64.tar.gz
+    - tar zxvf kustomize_v3.5.4_linux_amd64.tar.gz && mv ./kustomize /usr/bin
+    - gcloud container clusters get-credentials $GKE_CLUSTER_PRD --region asia-southeast1 --project $GCP_PROJECT_PRD
+    - echo $GCP_IMAGE_PRD:$CI_COMMIT_SHA-$CI_PIPELINE_IID
+    - kustomize build k8s/kustomize/overrides/prd | sed "s|IMAGE_PLACEHOLDER|\"$GCP_IMAGE_PRD:$CI_COMMIT_SHA-$CI_PIPELINE_IID\"|g" | kubectl apply -f -
+  environment:
+    name: production
+  needs:
+    - Build and Publish Docker Image
+  only:
+    refs:
+      - merge_requests
+  when: manual
+  only:
+    - staging-branch
+    - master

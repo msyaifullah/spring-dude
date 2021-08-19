@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard
+data:
+  APP_NAME: "dashboard-service"
+  APP_VERSION: "0.0.0"
+  APP_PORT: "8080"
+  APP_ENV: "development"
