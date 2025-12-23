@@ -151,6 +151,10 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>3.3.7</version>
                 <configuration>
+                    <!-- Fork to enable DevTools auto-restart -->
+                    <fork>true</fork>
+                    <!-- Add src/main/resources to classpath for live reload -->
+                    <addResources>true</addResources>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>

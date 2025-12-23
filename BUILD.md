@@ -423,6 +423,123 @@ java -jar venus/target/venus-0.0.1-SNAPSHOT.jar --spring.profiles.active=local
 
 ---
 
+## Development with Auto-Reload
+
+The project includes Spring Boot DevTools for automatic restart when code changes are detected.
+
+### Quick Start
+
+```bash
+# Use the dev script (recommended)
+./dev.sh
+
+# Or run manually
+mvn spring-boot:run -pl venus -Dspring-boot.run.profiles=local
+```
+
+### Dev Script Commands
+
+| Command | Description |
+|---------|-------------|
+| `./dev.sh` | Run with auto-reload (default) |
+| `./dev.sh debug` | Run with remote debugging (port 5005) |
+| `./dev.sh clean` | Clean build and run |
+| `./dev.sh test` | Run all tests |
+| `./dev.sh build` | Build without running |
+| `./dev.sh reload` | Force a reload |
+
+### How Auto-Reload Works
+
+1. **Automatic Restart**: When you modify Java files, Spring Boot DevTools automatically restarts the application
+2. **LiveReload**: Browser automatically refreshes when static resources change (requires LiveReload browser extension)
+3. **Fast Restart**: Uses a custom classloader for faster restarts (typically 1-2 seconds)
+
+### Development URLs
+
+| URL | Description |
+|-----|-------------|
+| http://localhost:8080 | Application |
+| http://localhost:8080/h2-console | H2 Database Console |
+| http://localhost:35729 | LiveReload Server |
+
+### IDE Configuration
+
+#### IntelliJ IDEA
+
+1. Enable auto-build:
+   - `Settings > Build, Execution, Deployment > Compiler`
+   - Check "Build project automatically"
+
+2. Enable auto-make while running:
+   - `Settings > Advanced Settings`
+   - Check "Allow auto-make to start even if developed application is currently running"
+
+3. Or use keyboard shortcut:
+   - Press `Cmd + F9` (Mac) or `Ctrl + F9` (Windows/Linux) to rebuild
+
+#### VS Code
+
+1. Install "Spring Boot Extension Pack"
+2. Auto-save is usually enabled by default
+3. Java files are compiled on save
+
+#### Eclipse/STS
+
+1. Auto-build is usually enabled by default
+2. Check `Project > Build Automatically`
+
+### Trigger Files
+
+You can force a restart by touching the trigger file:
+
+```bash
+# Force restart
+touch venus/src/main/resources/.reloadtrigger
+
+# Or use the dev script
+./dev.sh reload
+```
+
+### Remote Debugging
+
+To attach a debugger:
+
+```bash
+# Start in debug mode
+./dev.sh debug
+
+# Or manually
+mvn spring-boot:run -pl venus \
+    -Dspring-boot.run.profiles=local \
+    -Dspring-boot.run.jvmArguments="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=*:5005"
+```
+
+Then connect your IDE debugger to `localhost:5005`.
+
+### Configuration Files
+
+| Profile | File | Description |
+|---------|------|-------------|
+| local | `application-local.properties` | Local dev with H2 DB, auto-reload |
+| dev | `application-dev.properties` | Development with MySQL |
+| gitlab | `application-gitlab.properties` | CI/CD environment |
+
+### Disable Auto-Reload
+
+If you need to disable auto-reload temporarily:
+
+```bash
+# Via command line
+mvn spring-boot:run -pl venus \
+    -Dspring-boot.run.profiles=local \
+    -Dspring.devtools.restart.enabled=false
+
+# Or in application-local.properties
+spring.devtools.restart.enabled=false
+```
+
+---
+
 ## Deploying Earth Module as Standalone Library
 
 The `earth` module can be deployed separately to a Maven repository (Maven Central, JFrog Artifactory, or Nexus) for use by other projects.
