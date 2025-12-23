@@ -3,7 +3,7 @@ package com.yyggee.eggs.model.ds2;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.io.Serializable;
 
 @Accessors(chain = true)

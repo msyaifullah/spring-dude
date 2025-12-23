@@ -3,13 +3,15 @@ package com.yyggee.eggs.security;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import javax.annotation.PostConstruct;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.annotation.PostConstruct;
+import javax.crypto.SecretKey;
+import jakarta.servlet.http.HttpServletRequest;
 
 import com.yyggee.eggs.constants.ConstantAuth;
 import com.yyggee.eggs.exceptions.KitchenException;
 import com.yyggee.eggs.model.ds1.Role;
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,7 +27,7 @@ import org.springframework.stereotype.Component;
 public class JwtTokenProvider {
 
     @Value("${security.jwt.token.secret-key:secret-key}")
-    private String secretKey;
+    private String secretKeyString;
 
     @Value("${security.jwt.token.expire-length:3600000}")
     private long validityInMilliseconds; // 1h
@@ -36,24 +38,36 @@ public class JwtTokenProvider {
     @Autowired
     private AppUserDetails appUserDetails;
 
+    private SecretKey secretKey;
+
     @PostConstruct
     protected void init() {
-        secretKey = Base64.getEncoder().encodeToString(secretKey.getBytes());
+        // Ensure key is at least 256 bits (32 bytes) for HS256
+        byte[] keyBytes = secretKeyString.getBytes();
+        if (keyBytes.length < 32) {
+            byte[] paddedKey = new byte[32];
+            System.arraycopy(keyBytes, 0, paddedKey, 0, keyBytes.length);
+            keyBytes = paddedKey;
+        }
+        secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String createToken(String username, List<Role> roles) {
 
-        Claims claims = Jwts.claims().setSubject(username);
-        claims.put("auth", roles.stream().map(s -> new SimpleGrantedAuthority(s.getAuthority())).filter(Objects::nonNull).collect(Collectors.toList()));
-
         Date now = new Date();
         Date validity = new Date(now.getTime() + validityInMilliseconds);
 
+        List<SimpleGrantedAuthority> authorities = roles.stream()
+                .map(s -> new SimpleGrantedAuthority(s.getAuthority()))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
         return Jwts.builder()
-                .setClaims(claims)
-                .setIssuedAt(now)
-                .setExpiration(validity)
-                .signWith(SignatureAlgorithm.HS256, secretKey)
+                .subject(username)
+                .claim("auth", authorities)
+                .issuedAt(now)
+                .expiration(validity)
+                .signWith(secretKey)
                 .compact();
     }
 
@@ -63,7 +77,7 @@ public class JwtTokenProvider {
     }
 
     public String getUsername(String token) {
-        return Jwts.parser().setSigningKey(secretKey).parseClaimsJws(token).getBody().getSubject();
+        return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload().getSubject();
     }
 
     public String resolveBearerToken(String bearerToken) {
@@ -92,7 +106,7 @@ public class JwtTokenProvider {
     public boolean validateToken(String token) {
         if ("".equals(token)) throw new KitchenException("Expired or invalid JWT token", HttpStatus.UNAUTHORIZED);
         try {
-            Jws<Claims> jws = Jwts.parser().setSigningKey(secretKey).parseClaimsJws(token);
+            Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             throw new KitchenException("Expired or invalid JWT token", HttpStatus.UNAUTHORIZED);
@@ -101,8 +115,7 @@ public class JwtTokenProvider {
 
     public Claims claimToken(String token) {
         try {
-            Jws<Claims> jws = Jwts.parser().setSigningKey(secretKey).parseClaimsJws(token);
-            return jws.getBody();
+            return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
         } catch (JwtException | IllegalArgumentException e) {
             throw new KitchenException("Expired or invalid JWT token", HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -110,17 +123,15 @@ public class JwtTokenProvider {
 
     public String createRefreshToken(String username) {
 
-        Claims claims = Jwts.claims().setSubject(username);
-        claims.setAudience("AuthDashboardSvc");
-
         Date now = new Date();
         Date validity = addDay(validityInDays);
 
         return Jwts.builder()
-                .setClaims(claims)
-                .setIssuedAt(now)
-                .setExpiration(validity)
-                .signWith(SignatureAlgorithm.HS256, secretKey)
+                .subject(username)
+                .audience().add("AuthDashboardSvc").and()
+                .issuedAt(now)
+                .expiration(validity)
+                .signWith(secretKey)
                 .compact();
     }
 

@@ -15,7 +15,7 @@
     <description>Demo project for Spring Boot</description>
     <name>earth</name>
     <properties>
-        <java.version>11</java.version>
+        <java.version>17</java.version>
     </properties>
 
     <dependencies>
@@ -28,12 +28,12 @@
         <dependency>
             <groupId>commons-net</groupId>
             <artifactId>commons-net</artifactId>
-            <version>3.6</version>
+            <version>3.11.1</version>
         </dependency>
         <dependency>
             <groupId>org.mockftpserver</groupId>
             <artifactId>MockFtpServer</artifactId>
-            <version>2.7.1</version>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
 

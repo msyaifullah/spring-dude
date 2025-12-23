@@ -1,6 +1,6 @@
 package com.yyggee.eggs.model.ds1.book;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
 

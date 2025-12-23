@@ -3,8 +3,8 @@ package com.yyggee.eggs.model.ds1.player;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
-import javax.persistence.Embeddable;
-import javax.persistence.Embedded;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.Embedded;
 import java.util.Objects;
 
 @Data

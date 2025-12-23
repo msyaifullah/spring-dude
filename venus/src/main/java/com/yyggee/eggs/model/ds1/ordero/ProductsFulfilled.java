@@ -2,7 +2,7 @@ package com.yyggee.eggs.model.ds1.ordero;
 
 import lombok.Data;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Data
 @Entity
