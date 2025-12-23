@@ -22,6 +22,23 @@
         <module>venus</module><!-- main application presentation -->
     </modules>
 
+    <!-- Repositories to ensure dependencies can be resolved from Maven Central -->
+    <repositories>
+        <repository>
+            <id>maven-central</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>maven-central-plugins</id>
+            <name>Maven Central Plugins</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </pluginRepository>
+    </pluginRepositories>
+
     <dependencies>
     </dependencies>
 

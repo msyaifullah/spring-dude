@@ -22,6 +22,326 @@ spring-dude/
 - Maven 3.8+
 - (Optional) JFrog Artifactory or Nexus for artifact deployment
 
+---
+
+## Local Maven Configuration (~/.m2)
+
+Maven uses a local directory `~/.m2` for caching dependencies and storing configuration.
+
+### Directory Structure
+
+```
+~/.m2/
+├── settings.xml           # Maven settings (credentials, mirrors, proxies)
+├── settings-security.xml  # Encrypted master password (optional)
+└── repository/            # Local repository cache
+    ├── com/
+    ├── org/
+    └── ...
+```
+
+### Settings File Location
+
+| OS | Path |
+|----|------|
+| macOS/Linux | `~/.m2/settings.xml` |
+| Windows | `C:\Users\{username}\.m2\settings.xml` |
+
+### Complete settings.xml Example
+
+Create or edit `~/.m2/settings.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0
+                              https://maven.apache.org/xsd/settings-1.2.0.xsd">
+
+    <!-- Local repository location (optional, defaults to ~/.m2/repository) -->
+    <localRepository>${user.home}/.m2/repository</localRepository>
+
+    <!-- Offline mode (optional) -->
+    <offline>false</offline>
+
+    <!-- Server credentials for deployment -->
+    <servers>
+        <!-- JFrog Artifactory -->
+        <server>
+            <id>jfrog-releases</id>
+            <username>your-username</username>
+            <password>your-password-or-token</password>
+        </server>
+        <server>
+            <id>jfrog-snapshots</id>
+            <username>your-username</username>
+            <password>your-password-or-token</password>
+        </server>
+
+        <!-- Nexus Repository -->
+        <server>
+            <id>nexus-releases</id>
+            <username>your-username</username>
+            <password>your-password</password>
+        </server>
+        <server>
+            <id>nexus-snapshots</id>
+            <username>your-username</username>
+            <password>your-password</password>
+        </server>
+
+        <!-- GitHub Packages -->
+        <server>
+            <id>github</id>
+            <username>your-github-username</username>
+            <password>your-github-token</password>
+        </server>
+    </servers>
+
+    <!-- Mirrors (redirect repository requests) -->
+    <mirrors>
+        <!-- Example: Mirror all requests to corporate Artifactory -->
+        <!--
+        <mirror>
+            <id>corporate-artifactory</id>
+            <name>Corporate Artifactory Mirror</name>
+            <url>https://your-company.jfrog.io/artifactory/maven-virtual</url>
+            <mirrorOf>*</mirrorOf>
+        </mirror>
+        -->
+
+        <!-- Example: Mirror only central to Artifactory, allow others -->
+        <!--
+        <mirror>
+            <id>artifactory-central</id>
+            <name>Artifactory Central Mirror</name>
+            <url>https://your-company.jfrog.io/artifactory/libs-release</url>
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+        -->
+    </mirrors>
+
+    <!-- Proxy settings (if behind corporate proxy) -->
+    <!--
+    <proxies>
+        <proxy>
+            <id>corporate-proxy</id>
+            <active>true</active>
+            <protocol>http</protocol>
+            <host>proxy.your-company.com</host>
+            <port>8080</port>
+            <username>proxy-user</username>
+            <password>proxy-password</password>
+            <nonProxyHosts>localhost|127.0.0.1|*.your-company.com</nonProxyHosts>
+        </proxy>
+    </proxies>
+    -->
+
+    <!-- Profiles -->
+    <profiles>
+        <!-- Profile for using Maven Central directly -->
+        <profile>
+            <id>maven-central</id>
+            <repositories>
+                <repository>
+                    <id>central</id>
+                    <name>Maven Central</name>
+                    <url>https://repo.maven.apache.org/maven2</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+            <pluginRepositories>
+                <pluginRepository>
+                    <id>central-plugins</id>
+                    <name>Maven Central Plugins</name>
+                    <url>https://repo.maven.apache.org/maven2</url>
+                </pluginRepository>
+            </pluginRepositories>
+        </profile>
+
+        <!-- Profile for JFrog Artifactory -->
+        <profile>
+            <id>jfrog</id>
+            <repositories>
+                <repository>
+                    <id>jfrog-releases</id>
+                    <name>JFrog Releases</name>
+                    <url>https://your-org.jfrog.io/artifactory/libs-release</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+                <repository>
+                    <id>jfrog-snapshots</id>
+                    <name>JFrog Snapshots</name>
+                    <url>https://your-org.jfrog.io/artifactory/libs-snapshot</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+        </profile>
+
+        <!-- Profile for Nexus -->
+        <profile>
+            <id>nexus</id>
+            <repositories>
+                <repository>
+                    <id>nexus-releases</id>
+                    <name>Nexus Releases</name>
+                    <url>https://your-nexus.com/repository/maven-releases/</url>
+                </repository>
+                <repository>
+                    <id>nexus-snapshots</id>
+                    <name>Nexus Snapshots</name>
+                    <url>https://your-nexus.com/repository/maven-snapshots/</url>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+        </profile>
+    </profiles>
+
+    <!-- Active profiles (activate by default) -->
+    <activeProfiles>
+        <activeProfile>maven-central</activeProfile>
+        <!-- Uncomment to activate JFrog or Nexus -->
+        <!-- <activeProfile>jfrog</activeProfile> -->
+        <!-- <activeProfile>nexus</activeProfile> -->
+    </activeProfiles>
+
+</settings>
+```
+
+### Common Configuration Scenarios
+
+#### 1. Use Maven Central Only (Default)
+
+```xml
+<settings>
+    <activeProfiles>
+        <activeProfile>maven-central</activeProfile>
+    </activeProfiles>
+</settings>
+```
+
+#### 2. Use Corporate JFrog with Maven Central Fallback
+
+```xml
+<settings>
+    <mirrors>
+        <!-- Mirror central to JFrog, but allow direct access to others -->
+        <mirror>
+            <id>jfrog-central</id>
+            <url>https://your-org.jfrog.io/artifactory/libs-release</url>
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+    </mirrors>
+</settings>
+```
+
+#### 3. Disable Mirror (Fix Inaccessible Repository Error)
+
+If you see errors like `airasia.jfrog.io: nodename nor servname provided`, comment out or remove the mirror:
+
+```xml
+<settings>
+    <mirrors>
+        <!-- Comment out inaccessible mirrors -->
+        <!--
+        <mirror>
+            <id>central</id>
+            <url>https://airasia.jfrog.io/airasia/libs-release</url>
+            <mirrorOf>*</mirrorOf>
+        </mirror>
+        -->
+    </mirrors>
+</settings>
+```
+
+### Encrypting Passwords
+
+For security, encrypt passwords in settings.xml:
+
+```bash
+# Create master password
+mvn --encrypt-master-password your-master-password
+# Output: {jSMOWnoPFgsHVpMvz5VrIt5kRbzGpI8u+9EF1iFQyJQ=}
+
+# Add to ~/.m2/settings-security.xml
+```
+
+Create `~/.m2/settings-security.xml`:
+
+```xml
+<settingsSecurity>
+    <master>{jSMOWnoPFgsHVpMvz5VrIt5kRbzGpI8u+9EF1iFQyJQ=}</master>
+</settingsSecurity>
+```
+
+Then encrypt server passwords:
+
+```bash
+mvn --encrypt-password your-server-password
+# Output: {COQLCE6DU6GtcS5P=}
+
+# Use in settings.xml
+<server>
+    <id>my-server</id>
+    <username>user</username>
+    <password>{COQLCE6DU6GtcS5P=}</password>
+</server>
+```
+
+### Clearing Local Repository Cache
+
+```bash
+# Clear entire local repository (re-downloads everything)
+rm -rf ~/.m2/repository
+
+# Clear specific artifact
+rm -rf ~/.m2/repository/com/mysql/mysql-connector-j
+
+# Clear cached failures and force update
+mvn dependency:resolve -U
+
+# Purge local repository of snapshots
+mvn dependency:purge-local-repository -DsnapshotsOnly=true
+```
+
+### Useful Maven Commands
+
+```bash
+# Show effective settings
+mvn help:effective-settings
+
+# Show effective POM (merged with parent)
+mvn help:effective-pom
+
+# Display dependency tree
+mvn dependency:tree
+
+# Check for dependency updates
+mvn versions:display-dependency-updates
+
+# Analyze dependencies (find unused/undeclared)
+mvn dependency:analyze
+```
+
+---
+
 ## Building the Project
 
 ### Build All Modules
