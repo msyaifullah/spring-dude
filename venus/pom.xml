@@ -177,6 +177,7 @@
                     </gitConfig>
                     <installHooks>
                         <!-- The location of a git hook to install into the default hooks directory. -->
+                        <pre-commit>${project.basedir}/tools/hooks/pre-commit</pre-commit>
                         <commit-msg>${project.basedir}/tools/hooks/commit-msg</commit-msg>
                     </installHooks>
                 </configuration>
