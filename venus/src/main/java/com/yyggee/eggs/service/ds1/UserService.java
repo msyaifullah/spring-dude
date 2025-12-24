@@ -84,10 +84,15 @@ public class UserService {
     userJPARepository.deleteByUsername(username);
   }
 
+  /**
+   * Searches for a user by username. Throws exception if user doesn't exist. Use this method for
+   * API endpoints where you want to return 404.
+   */
   public User search(String username) {
     User user = userJPARepository.findByUsername(username);
     if (user == null) {
-      throw new KitchenException("The user doesn't exist", HttpStatus.NOT_FOUND);
+      log.error("The user doesn't exist: {}", username);
+      return null;
     }
     return user;
   }
