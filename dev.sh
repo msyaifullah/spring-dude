@@ -9,6 +9,8 @@
 #   ./dev.sh test         - Run tests
 #   ./dev.sh build        - Build without running
 #   ./dev.sh coverage     - Run tests and generate coverage report
+#   ./dev.sh format       - Format code using Spotless
+#   ./dev.sh format-check - Check code formatting (without applying)
 # ============================================================================
 
 set -e
@@ -163,6 +165,27 @@ run_coverage() {
     fi
 }
 
+# Format code using Spotless
+run_format() {
+    print_msg "Formatting code with Spotless..."
+    cd "$PROJECT_ROOT"
+    mvn spotless:apply
+    print_msg "Code formatted successfully!"
+}
+
+# Check code formatting
+run_format_check() {
+    print_msg "Checking code formatting..."
+    cd "$PROJECT_ROOT"
+    mvn spotless:check
+    if [ $? -eq 0 ]; then
+        print_msg "Code formatting is correct!"
+    else
+        print_error "Code formatting issues found. Run './dev.sh format' to fix."
+        exit 1
+    fi
+}
+
 # Force reload (touch trigger file)
 force_reload() {
     TRIGGER_FILE="$VENUS_DIR/src/main/resources/.reloadtrigger"
@@ -175,14 +198,16 @@ show_help() {
     echo "Usage: ./dev.sh [command]"
     echo ""
     echo "Commands:"
-    echo "  (none)    Run with auto-reload (default)"
-    echo "  debug     Run with remote debugging (port 5005)"
-    echo "  clean     Clean build and run"
-    echo "  test      Run all tests"
-    echo "  build     Build without running"
-    echo "  coverage  Run tests and generate coverage report"
-    echo "  reload    Force a reload (touch trigger file)"
-    echo "  help      Show this help message"
+    echo "  (none)       Run with auto-reload (default)"
+    echo "  debug        Run with remote debugging (port 5005)"
+    echo "  clean        Clean build and run"
+    echo "  test         Run all tests"
+    echo "  build        Build without running"
+    echo "  coverage     Run tests and generate coverage report"
+    echo "  format       Format code using Spotless"
+    echo "  format-check Check code formatting (without applying)"
+    echo "  reload       Force a reload (touch trigger file)"
+    echo "  help         Show this help message"
     echo ""
     echo "Examples:"
     echo "  ./dev.sh          # Start development server"
@@ -206,6 +231,12 @@ case "${1:-}" in
         ;;
     coverage)
         run_coverage
+        ;;
+    format)
+        run_format
+        ;;
+    format-check)
+        run_format_check
         ;;
     reload)
         force_reload

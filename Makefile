@@ -1,4 +1,4 @@
-.PHONY: help build test clean run dev format check coverage coverage-report coverage-check docker-build docker-run docker-compose-up docker-compose-down
+.PHONY: help build test clean run dev format format-check check coverage coverage-report coverage-check docker-build docker-run docker-compose-up docker-compose-down
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -56,22 +56,23 @@ dev: ## Run in development mode
 debug: ## Run in debug mode
 	./dev.sh debug
 
-format: ## Format code using Spotless (if configured)
-	@if mvn help:evaluate -Dexpression=spotless-maven-plugin.version -q -DforceStdout > /dev/null 2>&1; then \
-		mvn spotless:apply; \
-	else \
-		echo "Spotless plugin not configured. Skipping formatting."; \
-	fi
+format: ## Format code using Spotless
+	mvn spotless:apply
+	@echo "Code formatted successfully!"
+
+format-check: ## Check code formatting (without applying)
+	mvn spotless:check
 
 check: ## Run all quality checks (format, style, bugs)
 	@echo "Running quality checks..."
-	@if mvn help:evaluate -Dexpression=spotless-maven-plugin.version -q -DforceStdout > /dev/null 2>&1; then \
-		mvn spotless:check; \
-	fi
+	@echo "Checking code formatting..."
+	mvn spotless:check
 	@if mvn help:evaluate -Dexpression=maven-checkstyle-plugin.version -q -DforceStdout > /dev/null 2>&1; then \
+		echo "Running Checkstyle..."; \
 		mvn checkstyle:check; \
 	fi
 	@if mvn help:evaluate -Dexpression=spotbugs-maven-plugin.version -q -DforceStdout > /dev/null 2>&1; then \
+		echo "Running SpotBugs..."; \
 		mvn spotbugs:check; \
 	fi
 	@echo "Quality checks completed!"
