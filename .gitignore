@@ -35,3 +35,4 @@ build/
 ### Maven local settings ###
 # Keep settings.xml template, but ignore security file with encrypted passwords
 .m2/settings-security.xml
+.env
