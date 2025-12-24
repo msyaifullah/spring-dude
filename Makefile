@@ -47,14 +47,22 @@ coverage-check: ## Run tests with coverage check (fails if thresholds not met)
 clean: ## Clean build artifacts
 	mvn clean
 
-run: ## Run the application using dev.sh
+run: ## Run the application using dev.sh (loads .env automatically)
+	@if [ -f .env ]; then echo "Loading .env file..."; set -a; . ./.env; set +a; fi; \
 	./dev.sh
 
-dev: ## Run in development mode
+dev: ## Run in development mode (loads .env automatically)
+	@if [ -f .env ]; then echo "Loading .env file..."; set -a; . ./.env; set +a; fi; \
 	./dev.sh
 
-debug: ## Run in debug mode
+debug: ## Run in debug mode (loads .env automatically)
+	@if [ -f .env ]; then echo "Loading .env file..."; set -a; . ./.env; set +a; fi; \
 	./dev.sh debug
+
+run-maven: ## Run application directly with Maven (loads .env)
+	@if [ -f .env ]; then echo "Loading .env file..."; set -a; . ./.env; set +a; fi; \
+	mvn install -pl earth -DskipTests -q && \
+	mvn spring-boot:run -pl venus -Dspring-boot.run.profiles=local
 
 format: ## Format code using Spotless
 	mvn spotless:apply
@@ -86,8 +94,12 @@ deps-tree: ## Show dependency tree
 docker-build: ## Build Docker image
 	docker build -t spring-dude:latest .
 
-docker-run: ## Run Docker container
-	docker run --env-file env_file -p 8080:8080 spring-dude:latest
+docker-run: ## Run Docker container (uses .env if exists, otherwise env_file)
+	@if [ -f .env ]; then \
+		docker run --env-file .env -p 8080:8080 spring-dude:latest; \
+	else \
+		docker run --env-file env_file -p 8080:8080 spring-dude:latest; \
+	fi
 
 docker-compose-up: ## Start docker-compose services (MySQL, Redis)
 	docker-compose up -d
