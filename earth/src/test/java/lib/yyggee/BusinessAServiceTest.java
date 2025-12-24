@@ -20,7 +20,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.when;
 
-
 @Slf4j
 @ActiveProfiles("gitlab")
 class BusinessAServiceTest {
@@ -48,7 +47,7 @@ class BusinessAServiceTest {
     @Test
     public void findAllTest_WhenNoRecord() {
 
-        //logic testing
+        // logic testing
         IRule logic = Rule.and(
                 new RuleProblemA("1"),
                 Rule.or(
@@ -57,15 +56,12 @@ class BusinessAServiceTest {
                         new RuleProblemB("4"),
                         new RuleProblemC("5"),
                         new RuleProblemB("6"),
-                        new RuleProblemA("7")
-                ),
+                        new RuleProblemA("7")),
                 new RuleProblemB("8"),
                 new RuleProblemA("9"),
                 Rule.and(
                         new RuleProblemA("10"),
-                        new RuleProblemB("11")
-                )
-        );
+                        new RuleProblemB("11")));
 
         Thing thing = new Thing();
         Boolean data = new BusinessAService().evaluate(logic, thing);
@@ -75,21 +71,25 @@ class BusinessAServiceTest {
     @Test
     public void generate_PaymentConfig() {
         Map<String, String> dataConverted = new HashMap<>();
-        List<Thing> data = new ArrayList<>(){{
-            add(new Thing(1L, "nameOne", new BigDecimal("30.901")));
-            add(new Thing(2L, "nameTwo", new BigDecimal("30.902")));
-            add(new Thing(3L, "nameThree", new BigDecimal("30.903")));
-        }};
+        List<Thing> data = new ArrayList<>() {
+            {
+                add(new Thing(1L, "nameOne", new BigDecimal("30.901")));
+                add(new Thing(2L, "nameTwo", new BigDecimal("30.902")));
+                add(new Thing(3L, "nameThree", new BigDecimal("30.903")));
+            }
+        };
 
         dataConverted = data.stream().collect(Collectors.toMap(thing -> thing.getAmount().toString(), Thing::getName));
 
         log.info("dataConverted Sample {}", dataConverted);
 
-        dataConverted = new HashMap<>(){{
-            put("1", "nameOne");
-            put("2", "nameTwo");
-            put("3", "nameThree");
-        }};
+        dataConverted = new HashMap<>() {
+            {
+                put("1", "nameOne");
+                put("2", "nameTwo");
+                put("3", "nameThree");
+            }
+        };
 
         data = new ArrayList<>();
         for (Map.Entry<String, String> entry : dataConverted.entrySet()) {
@@ -99,6 +99,5 @@ class BusinessAServiceTest {
         log.info("data Sample {}", data);
 
     }
-
 
 }
