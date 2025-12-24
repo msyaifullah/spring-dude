@@ -21,95 +21,80 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping(Endpoints.BASE_URL + "/auth")
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+  @Autowired private UserService userService;
 
-    @Autowired
-    private ModelMapper modelMapper;
+  @Autowired private ModelMapper modelMapper;
 
-    @PostMapping(Endpoints.USER_SIGN_IN)
-    public ResponseEntity<BaseApiResponse> login(@RequestHeader(value = "Authorization", required = false) String basicToken, @RequestParam(value = "token", required = false) String bearerToken) {
-        if (null == basicToken && null == bearerToken) throw new KitchenException("Required authorizations params", HttpStatus.UNPROCESSABLE_ENTITY);
+  @PostMapping(Endpoints.USER_SIGN_IN)
+  public ResponseEntity<BaseApiResponse> login(
+      @RequestHeader(value = "Authorization", required = false) String basicToken,
+      @RequestParam(value = "token", required = false) String bearerToken) {
+    if (null == basicToken && null == bearerToken)
+      throw new KitchenException("Required authorizations params", HttpStatus.UNPROCESSABLE_ENTITY);
 
-        SigninResponse token = (basicToken != null) ? userService.signin(basicToken) : userService.signinToken(bearerToken);
+    SigninResponse token =
+        (basicToken != null)
+            ? userService.signin(basicToken)
+            : userService.signinToken(bearerToken);
 
-        if (null == token) {
-            throw new KitchenException("Invalid missing authorizations", HttpStatus.UNPROCESSABLE_ENTITY);
-        }
-
-        return new ResponseEntity<>(
-                new BaseApiResponse("OK", "Access Token",
-                        token
-                ), HttpStatus.OK
-        );
+    if (null == token) {
+      throw new KitchenException("Invalid missing authorizations", HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
-    @PostMapping(Endpoints.USER_SIGN_UP)
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<BaseApiResponse> signup(@RequestBody UserRequest user) {
-        UserResponse userResponse = modelMapper.map(
-                userService.signup(modelMapper.map(user, User.class)),
-                UserResponse.class
-        );
-        return new ResponseEntity<>(
-                new BaseApiResponse("OK", "User registered",
-                        userResponse
-                ), HttpStatus.OK
-        );
-    }
+    return new ResponseEntity<>(new BaseApiResponse("OK", "Access Token", token), HttpStatus.OK);
+  }
 
-    @DeleteMapping(Endpoints.USER_SIGN_OUT)
-    @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_CLIENT')")
-    public ResponseEntity<BaseApiResponse> signout(@RequestHeader("Authorization") String bearerToken) {
-        Boolean isLogin = userService.signout(bearerToken);
-        if (!isLogin) throw new KitchenException("Signout failed", HttpStatus.UNPROCESSABLE_ENTITY);
+  @PostMapping(Endpoints.USER_SIGN_UP)
+  @PreAuthorize("hasRole('ROLE_ADMIN')")
+  public ResponseEntity<BaseApiResponse> signup(@RequestBody UserRequest user) {
+    UserResponse userResponse =
+        modelMapper.map(userService.signup(modelMapper.map(user, User.class)), UserResponse.class);
+    return new ResponseEntity<>(
+        new BaseApiResponse("OK", "User registered", userResponse), HttpStatus.OK);
+  }
 
-        return new ResponseEntity<>(new BaseApiResponse("OK", "See you later"), HttpStatus.OK);
-    }
+  @DeleteMapping(Endpoints.USER_SIGN_OUT)
+  @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_CLIENT')")
+  public ResponseEntity<BaseApiResponse> signout(
+      @RequestHeader("Authorization") String bearerToken) {
+    Boolean isLogin = userService.signout(bearerToken);
+    if (!isLogin) throw new KitchenException("Signout failed", HttpStatus.UNPROCESSABLE_ENTITY);
 
-    @DeleteMapping(Endpoints.USER_SESSION_USERNAME)
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<BaseApiResponse> delete(@PathVariable String username) {
-        userService.delete(username);
-        return new ResponseEntity<>(
-                new BaseApiResponse("OK", "User name deleted",
-                        username
-                ), HttpStatus.OK
-        );
-    }
+    return new ResponseEntity<>(new BaseApiResponse("OK", "See you later"), HttpStatus.OK);
+  }
 
-    @GetMapping(Endpoints.USER_SESSION_USERNAME)
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<BaseApiResponse> search(@PathVariable String username) {
-        UserResponse userResponse = modelMapper.map(userService.search(username), UserResponse.class);
-        return new ResponseEntity<>(
-                new BaseApiResponse("OK", "User name search",
-                        userResponse
-                ), HttpStatus.OK
-        );
-    }
+  @DeleteMapping(Endpoints.USER_SESSION_USERNAME)
+  @PreAuthorize("hasRole('ROLE_ADMIN')")
+  public ResponseEntity<BaseApiResponse> delete(@PathVariable String username) {
+    userService.delete(username);
+    return new ResponseEntity<>(
+        new BaseApiResponse("OK", "User name deleted", username), HttpStatus.OK);
+  }
 
-    @GetMapping(Endpoints.USER_SESSION)
-    @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_CLIENT')")
-    public ResponseEntity<BaseApiResponse> whoami(@RequestHeader("Authorization") String bearerToken) {
-        UserResponse userResponse = modelMapper.map(userService.whoami(bearerToken), UserResponse.class);
-        return new ResponseEntity<>(
-                new BaseApiResponse("OK", "User Session",
-                        userResponse
-                ), HttpStatus.OK
-        );
-    }
+  @GetMapping(Endpoints.USER_SESSION_USERNAME)
+  @PreAuthorize("hasRole('ROLE_ADMIN')")
+  public ResponseEntity<BaseApiResponse> search(@PathVariable String username) {
+    UserResponse userResponse = modelMapper.map(userService.search(username), UserResponse.class);
+    return new ResponseEntity<>(
+        new BaseApiResponse("OK", "User name search", userResponse), HttpStatus.OK);
+  }
 
-    @GetMapping(Endpoints.USER_REFRESH)
-    @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_CLIENT')")
-    public ResponseEntity<BaseApiResponse> refresh(@RequestHeader("Authorization") String bearerToken) {
-        SigninResponse token = userService.refresh(bearerToken);
-        return new ResponseEntity<>(
-                new BaseApiResponse("OK", "Extend Access Token",
-                        token
-                ), HttpStatus.OK
-        );
-    }
+  @GetMapping(Endpoints.USER_SESSION)
+  @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_CLIENT')")
+  public ResponseEntity<BaseApiResponse> whoami(
+      @RequestHeader("Authorization") String bearerToken) {
+    UserResponse userResponse =
+        modelMapper.map(userService.whoami(bearerToken), UserResponse.class);
+    return new ResponseEntity<>(
+        new BaseApiResponse("OK", "User Session", userResponse), HttpStatus.OK);
+  }
 
+  @GetMapping(Endpoints.USER_REFRESH)
+  @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_CLIENT')")
+  public ResponseEntity<BaseApiResponse> refresh(
+      @RequestHeader("Authorization") String bearerToken) {
+    SigninResponse token = userService.refresh(bearerToken);
+    return new ResponseEntity<>(
+        new BaseApiResponse("OK", "Extend Access Token", token), HttpStatus.OK);
+  }
 }
-

@@ -7,13 +7,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class GenericSpringEventPublisher {
 
-    @Autowired
-    private ApplicationEventPublisher applicationEventPublisher;
+  @Autowired private ApplicationEventPublisher applicationEventPublisher;
 
-    public void publishCustomEvent(final String message) {
-        System.out.println("Publishing custom event. ");
-        GenericSpringEvent<String> customSpringEvent = new GenericSpringEvent<String>("ObjectEvent", true);
-        applicationEventPublisher.publishEvent(customSpringEvent);
-    }
-
+  public void publishCustomEvent(final String message) {
+    System.out.println("Publishing custom event. ");
+    GenericSpringEvent<String> customSpringEvent =
+        new GenericSpringEvent<String>("ObjectEvent", true);
+    applicationEventPublisher.publishEvent(customSpringEvent);
+  }
 }

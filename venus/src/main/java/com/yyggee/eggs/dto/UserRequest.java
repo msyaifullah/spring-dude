@@ -1,16 +1,13 @@
 package com.yyggee.eggs.dto;
 
-
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.yyggee.eggs.model.ds1.Role;
+import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import jakarta.validation.constraints.NotNull;
-import java.util.List;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,10 +16,8 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UserRequest {
 
-    @NotNull private String username;
-    @NotNull private String email;
-    @NotNull private String password;
-    @NotNull List<Role> roles;
-
+  @NotNull private String username;
+  @NotNull private String email;
+  @NotNull private String password;
+  @NotNull List<Role> roles;
 }
-

@@ -5,16 +5,15 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class RuleProblemA implements IRule {
-    private final String message;
+  private final String message;
 
-    public RuleProblemA(String message){
-        this.message = message;
-    }
+  public RuleProblemA(String message) {
+    this.message = message;
+  }
 
-    @Override
-    public boolean isSatisfied(Thing thing) {
-        log.info("is problem A executed {} {}", message, true);
-        return true;
-    }
-
+  @Override
+  public boolean isSatisfied(Thing thing) {
+    log.info("is problem A executed {} {}", message, true);
+    return true;
+  }
 }
