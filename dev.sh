@@ -8,6 +8,7 @@
 #   ./dev.sh clean        - Clean and run
 #   ./dev.sh test         - Run tests
 #   ./dev.sh build        - Build without running
+#   ./dev.sh coverage     - Run tests and generate coverage report
 # ============================================================================
 
 set -e
@@ -145,6 +146,23 @@ run_build() {
     print_msg "Build completed successfully."
 }
 
+# Run tests with coverage
+run_coverage() {
+    print_msg "Running tests with coverage..."
+    cd "$PROJECT_ROOT"
+    mvn clean test jacoco:report
+    print_msg "Coverage report generated!"
+    print_info "Earth module: $PROJECT_ROOT/earth/target/site/jacoco/index.html"
+    print_info "Venus module: $PROJECT_ROOT/venus/target/site/jacoco/index.html"
+    
+    # Try to open reports in browser (macOS/Linux)
+    if command -v open > /dev/null; then
+        open "$PROJECT_ROOT/earth/target/site/jacoco/index.html" "$PROJECT_ROOT/venus/target/site/jacoco/index.html" 2>/dev/null || true
+    elif command -v xdg-open > /dev/null; then
+        xdg-open "$PROJECT_ROOT/earth/target/site/jacoco/index.html" "$PROJECT_ROOT/venus/target/site/jacoco/index.html" 2>/dev/null || true
+    fi
+}
+
 # Force reload (touch trigger file)
 force_reload() {
     TRIGGER_FILE="$VENUS_DIR/src/main/resources/.reloadtrigger"
@@ -162,6 +180,7 @@ show_help() {
     echo "  clean     Clean build and run"
     echo "  test      Run all tests"
     echo "  build     Build without running"
+    echo "  coverage  Run tests and generate coverage report"
     echo "  reload    Force a reload (touch trigger file)"
     echo "  help      Show this help message"
     echo ""
@@ -184,6 +203,9 @@ case "${1:-}" in
         ;;
     build)
         run_build
+        ;;
+    coverage)
+        run_coverage
         ;;
     reload)
         force_reload

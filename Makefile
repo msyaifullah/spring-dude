@@ -1,4 +1,4 @@
-.PHONY: help build test clean run dev format check docker-build docker-run docker-compose-up docker-compose-down
+.PHONY: help build test clean run dev format check coverage coverage-report coverage-check docker-build docker-run docker-compose-up docker-compose-down
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -16,6 +16,33 @@ test: ## Run all tests
 
 test-module: ## Run tests for specific module (usage: make test-module MODULE=earth)
 	mvn test -pl $(MODULE)
+
+coverage: ## Run tests and generate coverage report
+	mvn clean test jacoco:report
+	@echo ""
+	@echo "Coverage report generated at:"
+	@echo "  - earth: earth/target/site/jacoco/index.html"
+	@echo "  - venus: venus/target/site/jacoco/index.html"
+
+coverage-report: ## Generate coverage report (open in browser if possible)
+	mvn clean test jacoco:report
+	@echo ""
+	@echo "Coverage reports generated:"
+	@if command -v open > /dev/null; then \
+		echo "Opening coverage reports..."; \
+		open earth/target/site/jacoco/index.html venus/target/site/jacoco/index.html 2>/dev/null || true; \
+	elif command -v xdg-open > /dev/null; then \
+		echo "Opening coverage reports..."; \
+		xdg-open earth/target/site/jacoco/index.html venus/target/site/jacoco/index.html 2>/dev/null || true; \
+	else \
+		echo "  - earth: earth/target/site/jacoco/index.html"; \
+		echo "  - venus: venus/target/site/jacoco/index.html"; \
+		echo "  Open these files in your browser to view coverage reports."; \
+	fi
+
+coverage-check: ## Run tests with coverage check (fails if thresholds not met)
+	mvn clean test jacoco:check
+	@echo "Coverage check passed!"
 
 clean: ## Clean build artifacts
 	mvn clean
