@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
-@RequestMapping(Endpoints.BASE_URL + "/auth")
+@RequestMapping(Endpoints.BASE_URL + "auth")
 public class UserController {
 
   @Autowired private UserService userService;
