@@ -22,6 +22,11 @@
             <artifactId>earth</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>lib.yyggee</groupId>
+            <artifactId>jupiter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- mysql -->
         <dependency>

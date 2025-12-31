@@ -19,6 +19,7 @@
 
     <modules>
         <module>earth</module><!-- library domain -->
+        <module>jupiter</module><!-- library redis and validation -->
         <module>venus</module><!-- main application presentation -->
     </modules>
 
