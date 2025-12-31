@@ -1,4 +1,4 @@
-package lib.yyggee.jupiter.test;
+package lib.yyggee.jupiter.redis;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
