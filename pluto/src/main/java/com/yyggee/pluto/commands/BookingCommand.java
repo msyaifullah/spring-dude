@@ -23,6 +23,8 @@ import com.yyggee.pluto.utils.NameNormalizer;
 import java.io.StringReader;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -544,13 +546,89 @@ public class BookingCommand implements Runnable {
                             s.match(
                                 m -> m.field("full_name.no_space").query(noSpaceName).boost(2.5f)));
 
-                    // Strategy 3: Individual token matching (middle name omission)
+                    // Strategy 3: Reversed order (for cases like "Hernandez William" vs "William
+                    // Hernandez")
+                    if (tokens.size() >= 2) {
+                      // Try reversed order with spaces
+                      List<String> reversedTokens = new ArrayList<>(tokens);
+                      Collections.reverse(reversedTokens);
+                      String reversedOrder = String.join(" ", reversedTokens);
+                      builder.should(
+                          s ->
+                              s.multiMatch(
+                                  m ->
+                                      m.fields("full_name", "full_name.no_space")
+                                          .query(reversedOrder)
+                                          .type(TextQueryType.BestFields)
+                                          .boost(2.8f)));
+
+                      // Try reversed order no-space
+                      String reversedNoSpace = String.join("", reversedTokens);
+                      builder.should(
+                          s ->
+                              s.match(
+                                  m ->
+                                      m.field("full_name.no_space")
+                                          .query(reversedNoSpace)
+                                          .boost(2.3f)));
+                    }
+
+                    // Strategy 4: Individual token matching (middle name omission)
+                    // This handles cases where input has no spaces (single token)
+                    // by matching each token from the stored name
                     for (String token : tokens) {
                       builder.should(
                           s -> s.match(m -> m.field("full_name").query(token).boost(1.5f)));
                     }
 
-                    // Strategy 4: Fuzzy match
+                    // Strategy 5: If input is single token (no-space, reversed order like
+                    // "HernandezWilliam")
+                    // Try splitting it into potential name parts and match both parts
+                    if (tokens.size() == 1 && tokens.get(0).length() > 8) {
+                      String singleToken = tokens.get(0);
+                      // Try splitting at middle point and a few variations
+                      int len = singleToken.length();
+                      // Try split points: middle, middle-2, middle+2
+                      int[] splitPoints = {
+                        len / 2, Math.max(4, len / 2 - 2), Math.min(len - 4, len / 2 + 2)
+                      };
+                      for (int splitPoint : splitPoints) {
+                        if (splitPoint >= 4 && splitPoint <= len - 4) {
+                          String part1 = singleToken.substring(0, splitPoint);
+                          String part2 = singleToken.substring(splitPoint);
+                          // Match both parts (order-agnostic) - both must match
+                          builder.should(
+                              s ->
+                                  s.bool(
+                                      b2 ->
+                                          b2.must(
+                                                  m1 ->
+                                                      m1.match(
+                                                          m -> m.field("full_name").query(part1)))
+                                              .must(
+                                                  m2 ->
+                                                      m2.match(
+                                                          m -> m.field("full_name").query(part2)))
+                                              .boost(2.0f)));
+                          // Also try reversed parts order
+                          builder.should(
+                              s ->
+                                  s.bool(
+                                      b2 ->
+                                          b2.must(
+                                                  m1 ->
+                                                      m1.match(
+                                                          m -> m.field("full_name").query(part2)))
+                                              .must(
+                                                  m2 ->
+                                                      m2.match(
+                                                          m -> m.field("full_name").query(part1)))
+                                              .boost(2.0f)));
+                        }
+                      }
+                    }
+
+                    // Strategy 6: Fuzzy match
                     builder.should(
                         s ->
                             s.match(
