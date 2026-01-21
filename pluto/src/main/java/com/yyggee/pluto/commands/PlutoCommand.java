@@ -11,7 +11,13 @@ import picocli.CommandLine.Spec;
     mixinStandardHelpOptions = true,
     version = "pluto 1.0",
     description = "Pluto CLI - Command-line tool for various operations",
-    subcommands = {HelloCommand.class, GreetCommand.class, InfoCommand.class})
+    subcommands = {
+      HelloCommand.class,
+      GreetCommand.class,
+      InfoCommand.class,
+      ElasticCommand.class,
+      BookingCommand.class
+    })
 public class PlutoCommand implements Runnable {
 
   @Spec CommandSpec spec;
