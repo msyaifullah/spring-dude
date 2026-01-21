@@ -1,0 +1,15 @@
+#!/bin/bash
+# Pluto CLI wrapper script
+# Usage: ./run-pluto hello --name=John
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+JAR_PATH="$SCRIPT_DIR/pluto/target/pluto-0.0.1-SNAPSHOT.jar"
+
+# Build if jar doesn't exist
+if [ ! -f "$JAR_PATH" ]; then
+    echo "Building pluto..."
+    mvn install -pl earth,jupiter,pluto -DskipTests -q -f "$SCRIPT_DIR/pom.xml"
+fi
+
+# Run the CLI with all arguments passed through
+java -jar "$JAR_PATH" "$@"

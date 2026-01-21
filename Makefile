@@ -120,7 +120,7 @@ setup: ## Initial setup - install dependencies and start services
 
 all: clean build test ## Clean, build, and test
 
-pluto: ## Run pluto CLI (usage: make pluto ARGS="hello --name=John")
+pluto: ## Run pluto CLI (usage: make pluto c="hello --name=John")
 	@mvn install -pl earth,jupiter,pluto -DskipTests -q 2>/dev/null || mvn install -pl earth,jupiter,pluto -DskipTests -q
-	@java -jar pluto/target/pluto-0.0.1-SNAPSHOT.jar $(ARGS)
+	@java -jar pluto/target/pluto-0.0.1-SNAPSHOT.jar $(q)
 
