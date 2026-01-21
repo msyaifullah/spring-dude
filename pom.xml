@@ -21,6 +21,7 @@
         <module>earth</module><!-- library domain -->
         <module>jupiter</module><!-- library redis and validation -->
         <module>venus</module><!-- main application presentation -->
+        <module>pluto</module><!-- command-line application -->
     </modules>
 
     <!-- Repositories to ensure dependencies can be resolved from Maven Central -->

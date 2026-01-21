@@ -1,4 +1,4 @@
-.PHONY: help build test clean run dev format format-check check coverage coverage-report coverage-check docker-build docker-run docker-compose-up docker-compose-down
+.PHONY: help build test clean run dev format format-check check coverage coverage-report coverage-check docker-build docker-run docker-compose-up docker-compose-down pluto
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -119,4 +119,8 @@ setup: ## Initial setup - install dependencies and start services
 	@echo "Setup complete! Services are starting..."
 
 all: clean build test ## Clean, build, and test
+
+pluto: ## Run pluto CLI (usage: make pluto ARGS="hello --name=John")
+	@mvn install -pl earth,jupiter,pluto -DskipTests -q 2>/dev/null || mvn install -pl earth,jupiter,pluto -DskipTests -q
+	@java -jar pluto/target/pluto-0.0.1-SNAPSHOT.jar $(ARGS)
 
