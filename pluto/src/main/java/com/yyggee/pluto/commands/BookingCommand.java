@@ -373,10 +373,100 @@ public class BookingCommand implements Runnable {
         System.out.println("  Threshold: " + threshold);
         System.out.println();
 
+        // Debug: Check index and sample data
+        try {
+          long docCount = client.count(CountRequest.of(c -> c.index(INDEX_NAME))).count();
+          System.out.println(
+              "DEBUG: Index '" + INDEX_NAME + "' contains " + docCount + " document(s)");
+
+          // Get some sample PNRs
+          SearchRequest sampleRequest =
+              SearchRequest.of(s -> s.index(INDEX_NAME).query(q -> q.matchAll(m -> m)).size(10));
+          SearchResponse<PassengerDocument> sampleResponse =
+              client.search(sampleRequest, PassengerDocument.class);
+          if (!sampleResponse.hits().hits().isEmpty()) {
+            System.out.println("DEBUG: Sample PNRs in index:");
+            for (Hit<PassengerDocument> hit : sampleResponse.hits().hits()) {
+              PassengerDocument doc = hit.source();
+              if (doc != null) {
+                System.out.println(
+                    "  - PNR: '"
+                        + doc.getPnr()
+                        + "' (length: "
+                        + doc.getPnr().length()
+                        + "), Name: "
+                        + doc.getFullName());
+              }
+            }
+          }
+        } catch (Exception e) {
+          System.out.println("DEBUG: Error checking index: " + e.getMessage());
+        }
+        System.out.println();
+
+        // Debug: Check PNR matches with different cases
+        String pnrUpper = pnr.toUpperCase();
+        String pnrLower = pnr.toLowerCase();
+        String pnrOriginal = pnr;
+        String pnrToUse = pnrUpper; // Default to uppercase
+
+        for (String pnrToTry : new String[] {pnrUpper, pnrLower, pnrOriginal}) {
+          SearchRequest pnrOnlyRequest =
+              SearchRequest.of(
+                  s ->
+                      s.index(INDEX_NAME)
+                          .query(q -> q.term(t -> t.field("pnr").value(pnrToTry)))
+                          .size(5));
+          SearchResponse<PassengerDocument> pnrResponse =
+              client.search(pnrOnlyRequest, PassengerDocument.class);
+          if (!pnrResponse.hits().hits().isEmpty()) {
+            System.out.println(
+                "DEBUG: Found "
+                    + pnrResponse.hits().hits().size()
+                    + " document(s) with PNR: '"
+                    + pnrToTry
+                    + "'");
+            for (Hit<PassengerDocument> hit : pnrResponse.hits().hits()) {
+              PassengerDocument doc = hit.source();
+              if (doc != null) {
+                System.out.println("  - PNR: '" + doc.getPnr() + "', Name: " + doc.getFullName());
+              }
+            }
+            pnrToUse = pnrToTry; // Use the case that worked
+            break;
+          }
+        }
+
+        // Debug: Check if name exists (without PNR filter)
+        System.out.println("DEBUG: Searching for name '" + name + "' without PNR filter...");
+        Query nameQueryDebug = buildNameQuery(name);
+        SearchRequest nameOnlyRequest =
+            SearchRequest.of(s -> s.index(INDEX_NAME).query(nameQueryDebug).size(10));
+        SearchResponse<PassengerDocument> nameResponse =
+            client.search(nameOnlyRequest, PassengerDocument.class);
+        System.out.println(
+            "DEBUG: Found "
+                + nameResponse.hits().hits().size()
+                + " document(s) with name matching '"
+                + name
+                + "'");
+        if (!nameResponse.hits().hits().isEmpty()) {
+          System.out.println("DEBUG: Sample name matches:");
+          for (Hit<PassengerDocument> hit : nameResponse.hits().hits()) {
+            PassengerDocument doc = hit.source();
+            if (doc != null) {
+              System.out.println(
+                  "  - PNR: '" + doc.getPnr() + "', Name: '" + doc.getFullName() + "'");
+            }
+          }
+        }
+        System.out.println();
+
         // Build multi-strategy query
         Query nameQuery = buildNameQuery(name);
 
         // Execute search
+        final String finalPnr = pnrToUse;
         SearchRequest searchRequest =
             SearchRequest.of(
                 s ->
@@ -385,17 +475,36 @@ public class BookingCommand implements Runnable {
                             q ->
                                 q.bool(
                                     b ->
-                                        b.must(
-                                                m ->
-                                                    m.term(
-                                                        t ->
-                                                            t.field("pnr")
-                                                                .value(pnr.toUpperCase())))
+                                        b.must(m -> m.term(t -> t.field("pnr").value(finalPnr)))
                                             .must(nameQuery)))
                         .size(10));
 
         SearchResponse<PassengerDocument> response =
             client.search(searchRequest, PassengerDocument.class);
+
+        System.out.println(
+            "DEBUG: Combined query (PNR + Name) returned "
+                + response.hits().hits().size()
+                + " result(s)");
+        if (!response.hits().hits().isEmpty()) {
+          System.out.println("DEBUG: Raw results before threshold filtering:");
+          for (Hit<PassengerDocument> hit : response.hits().hits()) {
+            PassengerDocument doc = hit.source();
+            if (doc != null) {
+              double esScore = hit.score() != null ? hit.score() : 0.0;
+              double tokenSimilarity = nameNormalizer.calculateSimilarity(name, doc.getFullName());
+              System.out.println(
+                  "  - Name: "
+                      + doc.getFullName()
+                      + ", ES Score: "
+                      + String.format("%.2f", esScore)
+                      + ", Token Similarity: "
+                      + String.format("%.2f", tokenSimilarity));
+            }
+          }
+          System.out.println();
+        }
+        System.out.println();
 
         // Display results
         displayResults(response);
@@ -461,6 +570,11 @@ public class BookingCommand implements Runnable {
 
       if (hits.isEmpty()) {
         System.out.println("No matches found for PNR: " + pnr);
+        System.out.println();
+        System.out.println(
+            "NOTE: The search requires BOTH PNR and name to match. "
+                + "If the PNR doesn't exist in the index, no results will be returned "
+                + "even if the name exists.");
         return;
       }
 
