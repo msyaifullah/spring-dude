@@ -77,14 +77,19 @@ public class ValidationRule<T> {
       return this;
     }
 
-    public Builder<T> check(String field, Function<T, Object> getter, Function<Object, Boolean> predicate, String message) {
-      this.validator = target -> {
-        Object value = getter.apply(target);
-        if (!predicate.apply(value)) {
-          return ValidationResult.invalid(field, message);
-        }
-        return ValidationResult.valid();
-      };
+    public Builder<T> check(
+        String field,
+        Function<T, Object> getter,
+        Function<Object, Boolean> predicate,
+        String message) {
+      this.validator =
+          target -> {
+            Object value = getter.apply(target);
+            if (!predicate.apply(value)) {
+              return ValidationResult.invalid(field, message);
+            }
+            return ValidationResult.valid();
+          };
       return this;
     }
 

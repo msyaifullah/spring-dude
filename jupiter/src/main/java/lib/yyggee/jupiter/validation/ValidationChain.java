@@ -65,9 +65,7 @@ public class ValidationChain<T> {
             .map(rule -> CompletableFuture.supplyAsync(() -> rule.execute(target), executor))
             .collect(Collectors.toList());
 
-    return futures.stream()
-        .map(CompletableFuture::join)
-        .collect(Collectors.toList());
+    return futures.stream().map(CompletableFuture::join).collect(Collectors.toList());
   }
 
   public static class Builder<T> {

@@ -233,9 +233,7 @@ class ValidationChainTest {
         };
 
     ValidationChain<User> chain =
-        ValidationChain.<User>builder()
-            .addHardRule("throwing-rule", throwingValidator)
-            .build();
+        ValidationChain.<User>builder().addHardRule("throwing-rule", throwingValidator).build();
 
     ValidationChainResult result = chain.validate(user);
 

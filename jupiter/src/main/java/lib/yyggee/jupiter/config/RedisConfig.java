@@ -62,7 +62,8 @@ public class RedisConfig {
 
   @Bean
   @ConditionalOnMissingBean
-  public RedisTemplate<String, Object> redisTemplate(JedisConnectionFactory jedisConnectionFactory) {
+  public RedisTemplate<String, Object> redisTemplate(
+      JedisConnectionFactory jedisConnectionFactory) {
     RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
     redisTemplate.setConnectionFactory(jedisConnectionFactory);
     redisTemplate.setKeySerializer(new StringRedisSerializer());

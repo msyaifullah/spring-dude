@@ -93,7 +93,8 @@ public class ValidationChainResult {
       for (ValidationRuleResult result : getPassedRules()) {
         sb.append(
             String.format(
-                "  [OK] %s (took %dms)\n", result.getRuleName(), result.getExecutionTime().toMillis()));
+                "  [OK] %s (took %dms)\n",
+                result.getRuleName(), result.getExecutionTime().toMillis()));
       }
       sb.append("\n");
     }
@@ -104,7 +105,9 @@ public class ValidationChainResult {
         sb.append(
             String.format(
                 "  [HARD FAIL] %s (took %dms): %s\n",
-                result.getRuleName(), result.getExecutionTime().toMillis(), result.getErrorMessage()));
+                result.getRuleName(),
+                result.getExecutionTime().toMillis(),
+                result.getErrorMessage()));
       }
       sb.append("\n");
     }
@@ -115,7 +118,9 @@ public class ValidationChainResult {
         sb.append(
             String.format(
                 "  [SOFT FAIL] %s (took %dms): %s\n",
-                result.getRuleName(), result.getExecutionTime().toMillis(), result.getErrorMessage()));
+                result.getRuleName(),
+                result.getExecutionTime().toMillis(),
+                result.getErrorMessage()));
       }
     }
 
