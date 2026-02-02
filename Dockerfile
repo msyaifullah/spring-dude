@@ -4,6 +4,8 @@
 FROM maven:3.9-eclipse-temurin-17 AS builder
 COPY earth/src /home/app/earth/src
 COPY earth/pom.xml /home/app/earth/pom.xml
+COPY jupiter/src /home/app/jupiter/src
+COPY jupiter/pom.xml /home/app/jupiter/pom.xml
 COPY venus/src /home/app/venus/src
 COPY venus/pom.xml /home/app/venus/pom.xml
 COPY pom.xml /home/app
