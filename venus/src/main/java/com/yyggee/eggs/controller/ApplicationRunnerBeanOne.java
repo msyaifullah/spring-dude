@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
 @Order(1)
 public class ApplicationRunnerBeanOne implements ApplicationRunner {
 
-    @Override
-    public void run(ApplicationArguments args) throws Exception {
-        System.out.println("ApplicationRunnerBeanOne 1");
-    }
+  @Override
+  public void run(ApplicationArguments args) throws Exception {
+    System.out.println("ApplicationRunnerBeanOne 1");
+  }
 }

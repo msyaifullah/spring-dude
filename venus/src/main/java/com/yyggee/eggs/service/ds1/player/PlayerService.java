@@ -2,29 +2,27 @@ package com.yyggee.eggs.service.ds1.player;
 
 import com.yyggee.eggs.model.ds1.player.Player;
 import com.yyggee.eggs.repositories.ds1.player.PlayerRepository;
-import org.springframework.stereotype.Service;
-
 import java.util.List;
+import org.springframework.stereotype.Service;
 
 @Service
 public class PlayerService {
 
-    private final PlayerRepository playerRepository;
+  private final PlayerRepository playerRepository;
 
-    public PlayerService(PlayerRepository playerRepository) {
-        this.playerRepository = playerRepository;
-    }
+  public PlayerService(PlayerRepository playerRepository) {
+    this.playerRepository = playerRepository;
+  }
 
-    public Iterable<Player> list() {
-        return playerRepository.findAll();
-    }
+  public Iterable<Player> list() {
+    return playerRepository.findAll();
+  }
 
-    public Player save(Player player) {
-        return playerRepository.save(player);
-    }
+  public Player save(Player player) {
+    return playerRepository.save(player);
+  }
 
-    public void save(List<Player> players) {
-        players.forEach(this::save);
-    }
-
+  public void save(List<Player> players) {
+    players.forEach(this::save);
+  }
 }

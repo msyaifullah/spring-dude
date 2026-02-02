@@ -6,80 +6,67 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Slf4j
 @Configuration
 @EnableWebSecurity
-@EnableGlobalMethodSecurity(prePostEnabled = true)
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+@EnableMethodSecurity(prePostEnabled = true)
+public class WebSecurityConfig {
 
-    @Autowired
-    private JwtTokenProvider jwtTokenProvider;
+  @Autowired private JwtTokenProvider jwtTokenProvider;
 
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        // Added Cors rule
-        http.cors();
-
+  @Bean
+  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http
+        // Enable CORS
+        .cors(cors -> cors.configure(http))
         // Disable CSRF (cross site request forgery)
-        http.csrf().disable();
-
+        .csrf(AbstractHttpConfigurer::disable)
         // No session will be created or used by spring security
-        http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-
+        .sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        // Allow frames for H2 console
+        .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
         // Entry points
-        http.authorizeRequests()//
-                .antMatchers(Endpoints.BASE_URL + "auth" + Endpoints.USER_SIGN_IN).permitAll()//
-                .antMatchers("/h2-console/**/**").permitAll()
-                // Disallow everything else..
-                .anyRequest().authenticated();
+        .authorizeHttpRequests(
+            auth ->
+                auth.requestMatchers(Endpoints.BASE_URL + "auth" + Endpoints.USER_SIGN_IN)
+                    .permitAll()
+                    .requestMatchers("/h2-console/**")
+                    .permitAll()
+                    .requestMatchers("/public")
+                    .permitAll()
+                    .requestMatchers(Endpoints.BASE_URL + Endpoints.HEALTH_CHECK)
+                    .permitAll()
+                    // Disallow everything else..
+                    .anyRequest()
+                    .authenticated())
+        // Apply JWT filter
+        .addFilterBefore(
+            new JwtTokenFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
 
-        // If a user try to access a resource without having enough permissions
-        //http.exceptionHandling().accessDeniedPage("/login");
+    return http.build();
+  }
 
-        // Apply JWT
-        http.apply(new JwtTokenFilterConfigurer(jwtTokenProvider));
+  @Bean
+  public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder(12);
+  }
 
-        // Optional, if you want to test the API from a browser
-        // http.httpBasic();
-    }
-
-    @Override
-    public void configure(WebSecurity web) throws Exception {
-        // Allow swagger to be accessed without authentication
-        web.ignoring()
-//                .antMatchers("/v2/api-docs")//
-//                .antMatchers("/swagger-resources/**")//
-//                .antMatchers("/swagger-ui.html")//
-//                .antMatchers("/configuration/**")//
-//                .antMatchers("/webjars/**")//
-                .antMatchers("/public")
-                .antMatchers( Endpoints.BASE_URL + Endpoints.HEALTH_CHECK)
-
-                // Un-secure H2 Database (for testing purposes, H2 console shouldn't be unprotected in production)
-                .and()
-                .ignoring()
-                .antMatchers("/h2-console/**/**");
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
-    }
-
-    @Override
-    @Bean
-    public AuthenticationManager authenticationManagerBean() throws Exception {
-        return super.authenticationManagerBean();
-    }
-
+  @Bean
+  public AuthenticationManager authenticationManager(
+      AuthenticationConfiguration authenticationConfiguration) throws Exception {
+    return authenticationConfiguration.getAuthenticationManager();
+  }
 }
-

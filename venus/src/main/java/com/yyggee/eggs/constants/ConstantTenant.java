@@ -2,10 +2,9 @@ package com.yyggee.eggs.constants;
 
 public class ConstantTenant {
 
-    private ConstantTenant() {}
+  private ConstantTenant() {}
 
-    public final static String A_TENANT = "merchanta";
-    public final static String B_TENANT = "merchantb";
-    public final static String DEFAULT_TENANT = A_TENANT;
-
+  public static final String A_TENANT = "merchanta";
+  public static final String B_TENANT = "merchantb";
+  public static final String DEFAULT_TENANT = A_TENANT;
 }

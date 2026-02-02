@@ -7,9 +7,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class GenericSpringEventListener implements ApplicationListener<GenericSpringEvent<String>> {
 
-    @Override
-    public void onApplicationEvent(@NonNull GenericSpringEvent<String> event) {
-        System.out.println("Received spring generic event - " + event.getSource());
-    }
-
+  @Override
+  public void onApplicationEvent(@NonNull GenericSpringEvent<String> event) {
+    System.out.println("Received spring generic event - " + event.getSource());
+  }
 }

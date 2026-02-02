@@ -14,9 +14,9 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SigninResponse {
-    private String access_token;
-    private long expired_in;
-    private long expired_at;
-    private String type;
-    private String refresh_token;
+  private String access_token;
+  private long expired_in;
+  private long expired_at;
+  private String type;
+  private String refresh_token;
 }

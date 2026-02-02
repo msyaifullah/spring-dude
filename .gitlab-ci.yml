@@ -19,7 +19,7 @@ variables:
   GKE_CLUSTER_PRD: k8s-tfprd-0jxs
 maven_test:
   image:
-    name: maven:3.6.0-jdk-11-slim
+    name: maven:3.9-eclipse-temurin-17
   stage: test
   allow_failure: false
   script: mvn clean test
@@ -28,7 +28,7 @@ maven_test:
 # mvn prebuild test
 maven_build:
   image:
-    name: maven:3.6.0-jdk-11-slim
+    name: maven:3.9-eclipse-temurin-17
   stage: build
   allow_failure: false
   script:

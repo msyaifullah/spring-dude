@@ -5,64 +5,57 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
-@EnableGlobalMethodSecurity(prePostEnabled = true)
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+@EnableMethodSecurity(prePostEnabled = true)
+public class WebSecurityConfig {
 
-    @Autowired
-    private JwtTokenProvider jwtTokenProvider;
+  @Autowired private JwtTokenProvider jwtTokenProvider;
 
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        http.csrf().disable();
+  @Bean
+  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http.csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
+        .authorizeHttpRequests(
+            auth ->
+                auth.requestMatchers(Endpoints.BASE_URL + "auth" + Endpoints.USER_SIGN_IN)
+                    .permitAll()
+                    .requestMatchers("/h2-console/**")
+                    .permitAll()
+                    .requestMatchers("/public")
+                    .permitAll()
+                    .requestMatchers(Endpoints.BASE_URL + Endpoints.HEALTH_CHECK)
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated())
+        .addFilterBefore(
+            new JwtTokenFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
 
-        // No session will be created or used by spring security
-        http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+    return http.build();
+  }
 
-        // Entry points
-        http.authorizeRequests()//
-                .antMatchers(Endpoints.BASE_URL + "auth" + Endpoints.USER_SIGN_IN).permitAll()//
-                .antMatchers("/h2-console/**/**").permitAll()
-                // Disallow everything else..
-                .anyRequest().authenticated();
+  @Bean
+  public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder(12);
+  }
 
-        // Apply JWT
-        http.apply(new JwtTokenFilterConfigurer(jwtTokenProvider));
-    }
-
-    @Override
-    public void configure(WebSecurity web) throws Exception {
-        // Allow swagger to be accessed without authentication
-        web.ignoring()
-                .antMatchers("/public")
-                .antMatchers( Endpoints.BASE_URL + Endpoints.HEALTH_CHECK)
-
-                // Un-secure H2 Database (for testing purposes, H2 console shouldn't be unprotected in production)
-                .and()
-                .ignoring()
-                .antMatchers("/h2-console/**/**");
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
-    }
-
-    @Override
-    @Bean
-    public AuthenticationManager authenticationManagerBean() throws Exception {
-        return super.authenticationManagerBean();
-    }
-
+  @Bean
+  public AuthenticationManager authenticationManager(
+      AuthenticationConfiguration authenticationConfiguration) throws Exception {
+    return authenticationConfiguration.getAuthenticationManager();
+  }
 }
-

@@ -5,7 +5,7 @@ import lib.yyggee.domain.rules.IRule;
 
 public class BusinessAService {
 
-    public boolean evaluate(IRule rule, Thing thing) {
-        return rule.isSatisfied(thing);
-    }
+  public boolean evaluate(IRule rule, Thing thing) {
+    return rule.isSatisfied(thing);
+  }
 }
