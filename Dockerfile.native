@@ -1,0 +1,43 @@
+############################
+# STEP 1: Build native executable using GraalVM (Latest LTS - Java 21)
+############################
+FROM ghcr.io/graalvm/native-image-community:21-muslib AS builder
+
+WORKDIR /home/app
+
+# Install Maven
+RUN microdnf install -y findutils
+
+# Copy Maven from official image
+COPY --from=maven:3.9-eclipse-temurin-21 /usr/share/maven /usr/share/maven
+ENV PATH="/usr/share/maven/bin:${PATH}"
+ENV MAVEN_HOME="/usr/share/maven"
+
+# Copy project files
+COPY earth/src /home/app/earth/src
+COPY earth/pom.xml /home/app/earth/pom.xml
+COPY jupiter/src /home/app/jupiter/src
+COPY jupiter/pom.xml /home/app/jupiter/pom.xml
+COPY venus/src /home/app/venus/src
+COPY venus/pom.xml /home/app/venus/pom.xml
+COPY pom.xml /home/app
+
+# Build native image (this will take longer than regular build)
+# Using -Pnative profile to enable native compilation
+RUN mvn -f /home/app/pom.xml clean package -Pnative -DskipTests
+
+#############################
+# STEP 2: Create minimal runtime image
+#############################
+FROM gcr.io/distroless/base-debian12:nonroot
+
+WORKDIR /app
+
+# Copy native executable (no JVM needed!)
+COPY --from=builder /home/app/venus/target/venus /app/application
+
+EXPOSE 8080
+
+USER nonroot:nonroot
+
+ENTRYPOINT ["/app/application"]
