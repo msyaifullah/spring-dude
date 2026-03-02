@@ -1,4 +1,4 @@
-.PHONY: help build test clean run dev format format-check check coverage coverage-report coverage-check docker-build docker-run docker-build-native docker-run-native docker-compose-up docker-compose-down build-native run-native
+.PHONY: help build test clean run dev format format-check check coverage coverage-report coverage-check docker-build docker-run docker-build-native docker-run-native docker-compose-up docker-compose-down build-native run-native gu-install-native-image gu-list gu-list-installed gu benchmark benchmark-native benchmark-jar benchmark-compare
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -11,31 +11,196 @@ build: ## Build the project (skip tests)
 build-test: ## Build the project with tests
 	mvn clean install
 
+# Helper to get gu command path
+GU_CMD := $(shell if command -v java &> /dev/null; then JAVA_HOME=$$(java -XshowSettings:properties -version 2>&1 | grep -E "java.home" | cut -d'=' -f2 | tr -d ' '); if [ -f "$$JAVA_HOME/bin/gu" ]; then echo "$$JAVA_HOME/bin/gu"; elif command -v gu &> /dev/null; then echo "gu"; else echo ""; fi; fi)
+
 check-graalvm: ## Check if GraalVM is installed and configured
 	@echo "Checking GraalVM installation..."
-	@if command -v java &> /dev/null; then \
+	@NATIVE_IMAGE_FOUND=0; \
+	if command -v java &> /dev/null; then \
 		JAVA_HOME=$$(java -XshowSettings:properties -version 2>&1 | grep -E "java.home" | cut -d'=' -f2 | tr -d ' '); \
-		if [ -f "$$JAVA_HOME/bin/native-image" ] || [ -n "$$GRAALVM_HOME" ]; then \
+		if [ -f "$$JAVA_HOME/bin/native-image" ]; then \
+			NATIVE_IMAGE_FOUND=1; \
+		fi; \
+	fi; \
+	if [ $$NATIVE_IMAGE_FOUND -eq 0 ] && [ -f .sdkmanrc ]; then \
+		GRAALVM_VERSION=$$(grep "^java=" .sdkmanrc | cut -d'=' -f2 | tr -d ' '); \
+		if [ -n "$$GRAALVM_VERSION" ]; then \
+			SDKMAN_BASE="/opt/homebrew/opt/sdkman-cli/libexec/candidates/java"; \
+			if [ ! -d "$$SDKMAN_BASE" ]; then \
+				SDKMAN_BASE="$$HOME/.sdkman/candidates/java"; \
+			fi; \
+			if [ -f "$$SDKMAN_BASE/$$GRAALVM_VERSION/bin/native-image" ]; then \
+				NATIVE_IMAGE_FOUND=1; \
+				JAVA_HOME="$$SDKMAN_BASE/$$GRAALVM_VERSION"; \
+			fi; \
+		fi; \
+	fi; \
+	if command -v java &> /dev/null; then \
+		if [ $$NATIVE_IMAGE_FOUND -eq 1 ]; then \
 			echo "✓ GraalVM found at: $$JAVA_HOME"; \
 			java -version 2>&1 | head -n 1; \
-			if [ -f "$$JAVA_HOME/bin/native-image" ]; then \
-				echo "✓ native-image tool found"; \
-			else \
-				echo "⚠ native-image tool not found. Install it with: gu install native-image"; \
-			fi; \
+			echo "✓ native-image tool found"; \
 		else \
-			echo "✗ GraalVM not found in JAVA_HOME: $$JAVA_HOME"; \
+			JAVA_HOME=$$(java -XshowSettings:properties -version 2>&1 | grep -E "java.home" | cut -d'=' -f2 | tr -d ' '); \
+			echo "✗ GraalVM/native-image not found in JAVA_HOME: $$JAVA_HOME"; \
 			echo ""; \
 			echo "To install GraalVM LTS with SDKMAN:"; \
 			echo "  1. sdk list java | grep -E 'graalvm|graalce'"; \
 			echo "  2. sdk install java 21.0.1-graalce  # Latest LTS (Java 21)"; \
 			echo "     # Or: sdk install java 17.x-graalce  # Java 17 LTS"; \
-			echo "  3. sdk use java 21.0.1-graalce"; \
-			echo "  4. gu install native-image"; \
+			echo "  3. sdk env  # Use project's .sdkmanrc"; \
+			echo "  4. make gu-install-native-image  # (if gu is available)"; \
 			exit 1; \
 		fi; \
 	else \
 		echo "✗ Java not found. Please install Java/GraalVM first."; \
+		exit 1; \
+	fi
+
+gu-install-native-image: ## Install native-image tool using gu
+	@GU_CMD=""; \
+	GRAALVM_HOME=""; \
+	if command -v java &> /dev/null; then \
+		JAVA_HOME=$$(java -XshowSettings:properties -version 2>&1 | grep -E "java.home" | cut -d'=' -f2 | tr -d ' '); \
+		if [ -f "$$JAVA_HOME/bin/gu" ]; then \
+			GU_CMD="$$JAVA_HOME/bin/gu"; \
+			GRAALVM_HOME="$$JAVA_HOME"; \
+		fi; \
+	fi; \
+	if [ -z "$$GU_CMD" ] && [ -f .sdkmanrc ]; then \
+		GRAALVM_VERSION=$$(grep "^java=" .sdkmanrc | cut -d'=' -f2 | tr -d ' '); \
+		if [ -n "$$GRAALVM_VERSION" ]; then \
+			SDKMAN_BASE="/opt/homebrew/opt/sdkman-cli/libexec/candidates/java"; \
+			if [ ! -d "$$SDKMAN_BASE" ]; then \
+				SDKMAN_BASE="$$HOME/.sdkman/candidates/java"; \
+			fi; \
+			if [ -f "$$SDKMAN_BASE/$$GRAALVM_VERSION/bin/gu" ]; then \
+				GU_CMD="$$SDKMAN_BASE/$$GRAALVM_VERSION/bin/gu"; \
+				GRAALVM_HOME="$$SDKMAN_BASE/$$GRAALVM_VERSION"; \
+			fi; \
+		fi; \
+	fi; \
+	if [ -z "$$GU_CMD" ] && command -v gu &> /dev/null; then \
+		GU_CMD="gu"; \
+	fi; \
+	if [ -n "$$GU_CMD" ]; then \
+		echo "Installing native-image using gu..."; \
+		$$GU_CMD install native-image; \
+	elif [ -n "$$GRAALVM_HOME" ]; then \
+		echo "✗ gu command not found in GraalVM installation: $$GRAALVM_HOME"; \
+		echo ""; \
+		echo "This may indicate an incomplete GraalVM installation."; \
+		echo "Try reinstalling GraalVM:"; \
+		echo "  sdk uninstall java 21.0.1-graalce"; \
+		echo "  sdk install java 21.0.1-graalce"; \
+		echo "  sdk env"; \
+		echo "  make gu-install-native-image"; \
+		exit 1; \
+	else \
+		echo "✗ gu command not found."; \
+		echo ""; \
+		echo "Make sure GraalVM is installed and active:"; \
+		echo "  1. Run: sdk env"; \
+		echo "  2. Then try again: make gu-install-native-image"; \
+		echo ""; \
+		echo "Or install GraalVM if not installed:"; \
+		echo "  sdk install java 21.0.1-graalce"; \
+		exit 1; \
+	fi
+
+gu-list: ## List all available GraalVM components
+	@GU_CMD=""; \
+	if command -v java &> /dev/null; then \
+		JAVA_HOME=$$(java -XshowSettings:properties -version 2>&1 | grep -E "java.home" | cut -d'=' -f2 | tr -d ' '); \
+		if [ -f "$$JAVA_HOME/bin/gu" ]; then \
+			GU_CMD="$$JAVA_HOME/bin/gu"; \
+		fi; \
+	fi; \
+	if [ -z "$$GU_CMD" ] && [ -f .sdkmanrc ]; then \
+		GRAALVM_VERSION=$$(grep "^java=" .sdkmanrc | cut -d'=' -f2 | tr -d ' '); \
+		if [ -n "$$GRAALVM_VERSION" ]; then \
+			SDKMAN_BASE="/opt/homebrew/opt/sdkman-cli/libexec/candidates/java"; \
+			if [ ! -d "$$SDKMAN_BASE" ]; then \
+				SDKMAN_BASE="$$HOME/.sdkman/candidates/java"; \
+			fi; \
+			if [ -f "$$SDKMAN_BASE/$$GRAALVM_VERSION/bin/gu" ]; then \
+				GU_CMD="$$SDKMAN_BASE/$$GRAALVM_VERSION/bin/gu"; \
+			fi; \
+		fi; \
+	fi; \
+	if [ -z "$$GU_CMD" ] && command -v gu &> /dev/null; then \
+		GU_CMD="gu"; \
+	fi; \
+	if [ -n "$$GU_CMD" ]; then \
+		$$GU_CMD list; \
+	else \
+		echo "✗ gu command not found. Run 'sdk env' first."; \
+		exit 1; \
+	fi
+
+gu-list-installed: ## List installed GraalVM components
+	@GU_CMD=""; \
+	if command -v java &> /dev/null; then \
+		JAVA_HOME=$$(java -XshowSettings:properties -version 2>&1 | grep -E "java.home" | cut -d'=' -f2 | tr -d ' '); \
+		if [ -f "$$JAVA_HOME/bin/gu" ]; then \
+			GU_CMD="$$JAVA_HOME/bin/gu"; \
+		fi; \
+	fi; \
+	if [ -z "$$GU_CMD" ] && [ -f .sdkmanrc ]; then \
+		GRAALVM_VERSION=$$(grep "^java=" .sdkmanrc | cut -d'=' -f2 | tr -d ' '); \
+		if [ -n "$$GRAALVM_VERSION" ]; then \
+			SDKMAN_BASE="/opt/homebrew/opt/sdkman-cli/libexec/candidates/java"; \
+			if [ ! -d "$$SDKMAN_BASE" ]; then \
+				SDKMAN_BASE="$$HOME/.sdkman/candidates/java"; \
+			fi; \
+			if [ -f "$$SDKMAN_BASE/$$GRAALVM_VERSION/bin/gu" ]; then \
+				GU_CMD="$$SDKMAN_BASE/$$GRAALVM_VERSION/bin/gu"; \
+			fi; \
+		fi; \
+	fi; \
+	if [ -z "$$GU_CMD" ] && command -v gu &> /dev/null; then \
+		GU_CMD="gu"; \
+	fi; \
+	if [ -n "$$GU_CMD" ]; then \
+		$$GU_CMD list --installed; \
+	else \
+		echo "✗ gu command not found. Run 'sdk env' first."; \
+		exit 1; \
+	fi
+
+gu: ## Run gu command (usage: make gu ARGS="install python")
+	@if [ -z "$(ARGS)" ]; then \
+		echo "Usage: make gu ARGS=\"<gu-command> <component>\""; \
+		echo "Example: make gu ARGS=\"install python\""; \
+		exit 1; \
+	fi; \
+	GU_CMD=""; \
+	if command -v java &> /dev/null; then \
+		JAVA_HOME=$$(java -XshowSettings:properties -version 2>&1 | grep -E "java.home" | cut -d'=' -f2 | tr -d ' '); \
+		if [ -f "$$JAVA_HOME/bin/gu" ]; then \
+			GU_CMD="$$JAVA_HOME/bin/gu"; \
+		fi; \
+	fi; \
+	if [ -z "$$GU_CMD" ] && [ -f .sdkmanrc ]; then \
+		GRAALVM_VERSION=$$(grep "^java=" .sdkmanrc | cut -d'=' -f2 | tr -d ' '); \
+		if [ -n "$$GRAALVM_VERSION" ]; then \
+			SDKMAN_BASE="/opt/homebrew/opt/sdkman-cli/libexec/candidates/java"; \
+			if [ ! -d "$$SDKMAN_BASE" ]; then \
+				SDKMAN_BASE="$$HOME/.sdkman/candidates/java"; \
+			fi; \
+			if [ -f "$$SDKMAN_BASE/$$GRAALVM_VERSION/bin/gu" ]; then \
+				GU_CMD="$$SDKMAN_BASE/$$GRAALVM_VERSION/bin/gu"; \
+			fi; \
+		fi; \
+	fi; \
+	if [ -z "$$GU_CMD" ] && command -v gu &> /dev/null; then \
+		GU_CMD="gu"; \
+	fi; \
+	if [ -n "$$GU_CMD" ]; then \
+		$$GU_CMD $(ARGS); \
+	else \
+		echo "✗ gu command not found. Run 'sdk env' first."; \
 		exit 1; \
 	fi
 
@@ -177,3 +342,124 @@ setup: ## Initial setup - install dependencies and start services
 
 all: clean build test ## Clean, build, and test
 
+benchmark: ## Run full benchmark comparison (native vs non-native)
+	@echo "=========================================="
+	@echo "  Benchmark: Native vs Non-Native"
+	@echo "=========================================="
+	@echo ""
+	@echo "Step 1: Building both versions..."
+	@echo ""
+	@$(MAKE) build-native 2>&1 | grep -E "(Building|Native executable built|Size)" || true
+	@$(MAKE) build 2>&1 | grep -E "(Building|BUILD SUCCESS)" | head -3 || true
+	@echo ""
+	@echo "Step 2: Comparing binary sizes..."
+	@$(MAKE) benchmark-compare
+	@echo ""
+	@echo "Step 3: Benchmarking startup time and memory..."
+	@echo ""
+	@echo "⚠️  Note: For runtime benchmarks, start each version separately:"
+	@echo "  - Native: make benchmark-native"
+	@echo "  - JAR:    make benchmark-jar"
+
+benchmark-native: ## Benchmark native executable (startup time, memory, size)
+	@echo "=========================================="
+	@echo "  Benchmark: Native Executable"
+	@echo "=========================================="
+	@if [ ! -f venus/target/venus ]; then \
+		echo "✗ Native executable not found. Building..."; \
+		$(MAKE) build-native > /dev/null 2>&1; \
+	fi
+	@echo ""
+	@echo "📦 Binary Size:"
+	@ls -lh venus/target/venus | awk '{print "   " $$5}'
+	@echo ""
+	@echo "⏱️  Startup Time Test:"
+	@echo "   Starting native executable (will timeout after 10s)..."
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	TIME_START=$$(date +%s%N); \
+	timeout 10s ./venus/target/venus > /tmp/native-startup.log 2>&1 & \
+	NATIVE_PID=$$!; \
+	sleep 2; \
+	if ps -p $$NATIVE_PID > /dev/null 2>&1; then \
+		TIME_END=$$(date +%s%N); \
+		STARTUP_TIME=$$(echo "scale=3; ($$TIME_END - $$TIME_START) / 1000000000" | bc); \
+		echo "   ✓ Started in: $$STARTUP_TIME seconds"; \
+		echo "   Process PID: $$NATIVE_PID"; \
+		echo ""; \
+		echo "💾 Memory Usage (RSS):"; \
+		ps -o pid,rss,command -p $$NATIVE_PID 2>/dev/null | tail -1 | awk '{printf "   RSS: %.2f MB\n", $$2/1024}'; \
+		echo ""; \
+		echo "   To stop: kill $$NATIVE_PID"; \
+		echo "   Or run: pkill -f venus/target/venus"; \
+	else \
+		echo "   ✗ Failed to start (check logs: /tmp/native-startup.log)"; \
+	fi
+
+benchmark-jar: ## Benchmark regular JAR (startup time, memory, size)
+	@echo "=========================================="
+	@echo "  Benchmark: Regular JAR"
+	@echo "=========================================="
+	@if [ ! -f venus/target/venus-*.jar ]; then \
+		echo "✗ JAR not found. Building..."; \
+		$(MAKE) build > /dev/null 2>&1; \
+	fi
+	@JAR_FILE=$$(ls venus/target/venus-*.jar 2>/dev/null | grep -v original | head -1); \
+	if [ -z "$$JAR_FILE" ]; then \
+		echo "✗ JAR file not found"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "📦 JAR Size:"
+	@ls -lh $$JAR_FILE | awk '{print "   " $$5}'
+	@echo ""
+	@echo "⏱️  Startup Time Test:"
+	@echo "   Starting Spring Boot JAR (will timeout after 30s)..."
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	TIME_START=$$(date +%s%N); \
+	timeout 30s java -jar $$JAR_FILE > /tmp/jar-startup.log 2>&1 & \
+	JAR_PID=$$!; \
+	sleep 5; \
+	if ps -p $$JAR_PID > /dev/null 2>&1; then \
+		TIME_END=$$(date +%s%N); \
+		STARTUP_TIME=$$(echo "scale=3; ($$TIME_END - $$TIME_START) / 1000000000" | bc); \
+		echo "   ✓ Started in: $$STARTUP_TIME seconds"; \
+		echo "   Process PID: $$JAR_PID"; \
+		echo ""; \
+		echo "💾 Memory Usage (RSS):"; \
+		ps -o pid,rss,command -p $$JAR_PID 2>/dev/null | tail -1 | awk '{printf "   RSS: %.2f MB\n", $$2/1024}'; \
+		echo ""; \
+		echo "   To stop: kill $$JAR_PID"; \
+		echo "   Or run: pkill -f 'java.*venus.*jar'"; \
+	else \
+		echo "   ✗ Failed to start (check logs: /tmp/jar-startup.log)"; \
+	fi
+
+benchmark-compare: ## Compare binary sizes and show summary
+	@echo "=========================================="
+	@echo "  Size Comparison"
+	@echo "=========================================="
+	@NATIVE_SIZE=0; \
+	JAR_SIZE=0; \
+	if [ -f venus/target/venus ]; then \
+		NATIVE_SIZE=$$(stat -f%z venus/target/venus 2>/dev/null || stat -c%s venus/target/venus 2>/dev/null); \
+		echo "✓ Native executable: $$(ls -lh venus/target/venus | awk '{print $$5}')"; \
+	else \
+		echo "✗ Native executable not found"; \
+	fi; \
+	JAR_FILE=$$(ls venus/target/venus-*.jar 2>/dev/null | grep -v original | head -1); \
+	if [ -n "$$JAR_FILE" ] && [ -f "$$JAR_FILE" ]; then \
+		JAR_SIZE=$$(stat -f%z "$$JAR_FILE" 2>/dev/null || stat -c%s "$$JAR_FILE" 2>/dev/null); \
+		echo "✓ JAR file: $$(ls -lh $$JAR_FILE | awk '{print $$5}')"; \
+	else \
+		echo "✗ JAR file not found"; \
+	fi; \
+	if [ $$NATIVE_SIZE -gt 0 ] && [ $$JAR_SIZE -gt 0 ]; then \
+		echo ""; \
+		echo "📊 Comparison:"; \
+		RATIO=$$(echo "scale=2; $$NATIVE_SIZE / $$JAR_SIZE" | bc); \
+		if [ $$(echo "$$RATIO < 1" | bc) -eq 1 ]; then \
+			echo "   Native is $$(echo "scale=1; (1 - $$RATIO) * 100" | bc)% smaller"; \
+		else \
+			echo "   Native is $$(echo "scale=1; ($$RATIO - 1) * 100" | bc)% larger"; \
+		fi; \
+	fi

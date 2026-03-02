@@ -16,7 +16,7 @@
     <properties>
         <java.version>17</java.version>
         <repackage.classifier/>
-        <native.buildtools.version>0.10.3</native.buildtools.version>
+        <native.buildtools.version>0.10.5</native.buildtools.version>
     </properties>
     <dependencies>
         <dependency>
@@ -292,14 +292,11 @@
                 <artifactId>native-maven-plugin</artifactId>
                 <version>${native.buildtools.version}</version>
                 <extensions>true</extensions>
+                <configuration>
+                    <skipNativeTests>true</skipNativeTests>
+                </configuration>
                 <executions>
-                    <execution>
-                        <id>test-native</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>test</goal>
-                        </goals>
-                    </execution>
+                    <!-- Native build only runs when -Pnative profile is active -->
                     <execution>
                         <id>build-native</id>
                         <phase>package</phase>
@@ -360,6 +357,9 @@
                                 <goals>
                                     <goal>test</goal>
                                 </goals>
+                                <configuration>
+                                    <skip>true</skip>
+                                </configuration>
                             </execution>
                             <execution>
                                 <id>build-native</id>

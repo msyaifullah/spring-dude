@@ -31,16 +31,35 @@ sdk install java $(sdk list java | grep -E 'graalvm|graalce' | head -1 | awk '{p
 
 ### 3. Set GraalVM as Current Java Version
 
-```bash
-# Use the installed GraalVM (Java 21 LTS)
-sdk use java 21.0.1-graalce
+**Option A: Use project-specific version (Recommended)**
 
-# Or set it as default
-sdk default java 21.0.1-graalce
+This project includes a `.sdkmanrc` file that specifies Java 21.0.1-graalce. To use it automatically for this project:
+
+```bash
+# Activate the project's SDKMAN configuration
+sdk env
+
+# Or if using newer SDKMAN versions
+sdkman env
+```
+
+This will automatically switch to Java 21.0.1-graalce when you're in this project directory. The version is scoped to this project only and won't affect your global Java version.
+
+**Option B: Set manually for current session**
+
+```bash
+# Use the installed GraalVM (Java 21 LTS) for current terminal session
+sdk use java 21.0.1-graalce
 
 # For Java 17 LTS:
 # sdk use java 17.0.10-graalce
-# sdk default java 17.0.10-graalce
+```
+
+**Option C: Set as global default**
+
+```bash
+# Set it as default for all projects (not recommended if you work on multiple projects)
+sdk default java 21.0.1-graalce
 ```
 
 ### 4. Install Native Image Tool
@@ -74,12 +93,17 @@ make check-graalvm
 Once GraalVM is set up:
 
 ```bash
+# Activate project-specific Java version (if using .sdkmanrc)
+sdk env
+
 # Build native executable locally
 make build-native
 
 # Run native executable
 make run-native
 ```
+
+**Note:** If you use `sdk env`, it will automatically set Java 21.0.1-graalce for this project. You only need to run it once per terminal session when you enter the project directory.
 
 ## Java Version Compatibility
 
