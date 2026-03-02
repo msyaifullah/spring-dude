@@ -1,5 +1,26 @@
 package com.yyggee.pluto.commands;
 
+import java.io.StringReader;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+
+import org.apache.http.HttpHost;
+import org.elasticsearch.client.RestClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import com.yyggee.pluto.model.PassengerDocument;
+import com.yyggee.pluto.utils.NameGenerator;
+import com.yyggee.pluto.utils.NameNormalizer;
+
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
@@ -17,37 +38,15 @@ import co.elastic.clients.elasticsearch.indices.ExistsRequest;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
-import com.yyggee.pluto.model.PassengerDocument;
-import com.yyggee.pluto.utils.NameGenerator;
-import com.yyggee.pluto.utils.NameNormalizer;
-import java.io.StringReader;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.Callable;
-import org.apache.http.HttpHost;
-import org.elasticsearch.client.RestClient;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 @Component
-@Command(
-    name = "booking",
-    mixinStandardHelpOptions = true,
-    description = "Flight booking search with Asian name support",
-    subcommands = {
-      BookingCommand.SeedCommand.class,
-      BookingCommand.SearchCommand.class,
-      BookingCommand.DeleteCommand.class
-    })
+@Command(name = "booking", mixinStandardHelpOptions = true, description = "Flight booking search with Asian name support", subcommands = {
+    BookingCommand.SeedCommand.class,
+    BookingCommand.SearchCommand.class,
+    BookingCommand.DeleteCommand.class
+})
 public class BookingCommand implements Runnable {
 
   @Override
@@ -58,8 +57,7 @@ public class BookingCommand implements Runnable {
 
   private static final String INDEX_NAME = "booking-passengers";
 
-  private static final String INDEX_CONFIG =
-      """
+  private static final String INDEX_CONFIG = """
       {
         "settings": {
           "number_of_shards": 1,
@@ -133,10 +131,7 @@ public class BookingCommand implements Runnable {
       """;
 
   @Component
-  @Command(
-      name = "seed",
-      mixinStandardHelpOptions = true,
-      description = "Seed sample booking data with Asian names")
+  @Command(name = "seed", mixinStandardHelpOptions = true, description = "Seed sample booking data with Asian names")
   public static class SeedCommand implements Callable<Integer> {
 
     @Value("${elasticsearch.host:localhost}")
@@ -145,21 +140,13 @@ public class BookingCommand implements Runnable {
     @Value("${elasticsearch.port:9200}")
     private int port;
 
-    @Option(
-        names = {"-c", "--count"},
-        description = "Number of bookings to generate",
-        defaultValue = "1000")
+    @Option(names = { "-c", "--count" }, description = "Number of bookings to generate", defaultValue = "1000")
     private int count;
 
-    @Option(
-        names = {"-b", "--batch-size"},
-        description = "Batch size for bulk indexing",
-        defaultValue = "500")
+    @Option(names = { "-b", "--batch-size" }, description = "Batch size for bulk indexing", defaultValue = "500")
     private int batchSize;
 
-    @Option(
-        names = {"--recreate"},
-        description = "Recreate index (delete existing)")
+    @Option(names = { "--recreate" }, description = "Recreate index (delete existing)")
     private boolean recreate;
 
     private final Random random = new Random();
@@ -167,15 +154,13 @@ public class BookingCommand implements Runnable {
     @Override
     public Integer call() {
       try (RestClient restClient = RestClient.builder(new HttpHost(host, port, "http")).build()) {
-        ElasticsearchTransport transport =
-            new RestClientTransport(restClient, new JacksonJsonpMapper());
+        ElasticsearchTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
         ElasticsearchClient client = new ElasticsearchClient(transport);
 
         System.out.println("Connecting to Elasticsearch at " + host + ":" + port);
 
         // Check if index exists
-        boolean indexExists =
-            client.indices().exists(ExistsRequest.of(e -> e.index(INDEX_NAME))).value();
+        boolean indexExists = client.indices().exists(ExistsRequest.of(e -> e.index(INDEX_NAME))).value();
 
         if (indexExists && recreate) {
           System.out.println("Deleting existing index: " + INDEX_NAME);
@@ -283,31 +268,30 @@ public class BookingCommand implements Runnable {
     }
 
     private String generateEmail(String fullName, int id) {
-      String normalized =
-          fullName
-              .toLowerCase()
-              .replaceAll("[^a-z0-9]", ".")
-              .replaceAll("\\.+", ".")
-              .replaceAll("^\\.|\\.$", "");
-      String[] domains = {"gmail.com", "yahoo.com", "outlook.com", "airasia.com", "mail.com"};
+      String normalized = fullName
+          .toLowerCase()
+          .replaceAll("[^a-z0-9]", ".")
+          .replaceAll("\\.+", ".")
+          .replaceAll("^\\.|\\.$", "");
+      String[] domains = { "gmail.com", "yahoo.com", "outlook.com", "airasia.com", "mail.com" };
       return normalized + id + "@" + domains[id % domains.length];
     }
 
     private String generatePhone(NameGenerator.NameType nameType) {
       return switch (nameType) {
         case CHINESE ->
-            "+86" + (130 + random.nextInt(70)) + String.format("%08d", random.nextInt(100000000));
+          "+86" + (130 + random.nextInt(70)) + String.format("%08d", random.nextInt(100000000));
         case MALAYSIAN_MALAY, MALAYSIAN_CHINESE, MALAYSIAN_INDIAN ->
-            "+60" + (10 + random.nextInt(9)) + String.format("%07d", random.nextInt(10000000));
+          "+60" + (10 + random.nextInt(9)) + String.format("%07d", random.nextInt(10000000));
         case USA ->
-            "+1" + (200 + random.nextInt(800)) + String.format("%07d", random.nextInt(10000000));
+          "+1" + (200 + random.nextInt(800)) + String.format("%07d", random.nextInt(10000000));
         case INDONESIAN, INDONESIAN_JAVANESE ->
-            "+62" + (81 + random.nextInt(9)) + String.format("%08d", random.nextInt(100000000));
+          "+62" + (81 + random.nextInt(9)) + String.format("%08d", random.nextInt(100000000));
       };
     }
 
     private String generateFlightNumber() {
-      String[] carriers = {"AK", "D7", "QZ", "FD", "Z2"};
+      String[] carriers = { "AK", "D7", "QZ", "FD", "Z2" };
       return carriers[random.nextInt(carriers.length)] + (1000 + random.nextInt(9000));
     }
 
@@ -329,10 +313,7 @@ public class BookingCommand implements Runnable {
   }
 
   @Component
-  @Command(
-      name = "search",
-      mixinStandardHelpOptions = true,
-      description = "Search bookings by PNR and name")
+  @Command(name = "search", mixinStandardHelpOptions = true, description = "Search bookings by PNR and name")
   public static class SearchCommand implements Callable<Integer> {
 
     @Value("${elasticsearch.host:localhost}")
@@ -341,22 +322,13 @@ public class BookingCommand implements Runnable {
     @Value("${elasticsearch.port:9200}")
     private int port;
 
-    @Option(
-        names = {"-p", "--pnr"},
-        description = "PNR (booking reference)",
-        required = true)
+    @Option(names = { "-p", "--pnr" }, description = "PNR (booking reference)", required = true)
     private String pnr;
 
-    @Option(
-        names = {"-n", "--name"},
-        description = "Passenger name to search",
-        required = true)
+    @Option(names = { "-n", "--name" }, description = "Passenger name to search", required = true)
     private String name;
 
-    @Option(
-        names = {"-t", "--threshold"},
-        description = "Similarity threshold (0.0-1.0)",
-        defaultValue = "0.7")
+    @Option(names = { "-t", "--threshold" }, description = "Similarity threshold (0.0-1.0)", defaultValue = "0.7")
     private double threshold;
 
     private final NameNormalizer nameNormalizer = new NameNormalizer();
@@ -364,8 +336,7 @@ public class BookingCommand implements Runnable {
     @Override
     public Integer call() {
       try (RestClient restClient = RestClient.builder(new HttpHost(host, port, "http")).build()) {
-        ElasticsearchTransport transport =
-            new RestClientTransport(restClient, new JacksonJsonpMapper());
+        ElasticsearchTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
         ElasticsearchClient client = new ElasticsearchClient(transport);
 
         System.out.println("Searching for:");
@@ -382,10 +353,9 @@ public class BookingCommand implements Runnable {
               "DEBUG: Index '" + INDEX_NAME + "' contains " + docCount + " document(s)");
 
           // Get some sample PNRs
-          SearchRequest sampleRequest =
-              SearchRequest.of(s -> s.index(INDEX_NAME).query(q -> q.matchAll(m -> m)).size(10));
-          SearchResponse<PassengerDocument> sampleResponse =
-              client.search(sampleRequest, PassengerDocument.class);
+          SearchRequest sampleRequest = SearchRequest
+              .of(s -> s.index(INDEX_NAME).query(q -> q.matchAll(m -> m)).size(10));
+          SearchResponse<PassengerDocument> sampleResponse = client.search(sampleRequest, PassengerDocument.class);
           if (!sampleResponse.hits().hits().isEmpty()) {
             System.out.println("DEBUG: Sample PNRs in index:");
             for (Hit<PassengerDocument> hit : sampleResponse.hits().hits()) {
@@ -412,15 +382,12 @@ public class BookingCommand implements Runnable {
         String pnrOriginal = pnr;
         String pnrToUse = pnrUpper; // Default to uppercase
 
-        for (String pnrToTry : new String[] {pnrUpper, pnrLower, pnrOriginal}) {
-          SearchRequest pnrOnlyRequest =
-              SearchRequest.of(
-                  s ->
-                      s.index(INDEX_NAME)
-                          .query(q -> q.term(t -> t.field("pnr").value(pnrToTry)))
-                          .size(5));
-          SearchResponse<PassengerDocument> pnrResponse =
-              client.search(pnrOnlyRequest, PassengerDocument.class);
+        for (String pnrToTry : new String[] { pnrUpper, pnrLower, pnrOriginal }) {
+          SearchRequest pnrOnlyRequest = SearchRequest.of(
+              s -> s.index(INDEX_NAME)
+                  .query(q -> q.term(t -> t.field("pnr").value(pnrToTry)))
+                  .size(5));
+          SearchResponse<PassengerDocument> pnrResponse = client.search(pnrOnlyRequest, PassengerDocument.class);
           if (!pnrResponse.hits().hits().isEmpty()) {
             System.out.println(
                 "DEBUG: Found "
@@ -442,10 +409,8 @@ public class BookingCommand implements Runnable {
         // Debug: Check if name exists (without PNR filter)
         System.out.println("DEBUG: Searching for name '" + name + "' without PNR filter...");
         Query nameQueryDebug = buildNameQuery(name);
-        SearchRequest nameOnlyRequest =
-            SearchRequest.of(s -> s.index(INDEX_NAME).query(nameQueryDebug).size(10));
-        SearchResponse<PassengerDocument> nameResponse =
-            client.search(nameOnlyRequest, PassengerDocument.class);
+        SearchRequest nameOnlyRequest = SearchRequest.of(s -> s.index(INDEX_NAME).query(nameQueryDebug).size(10));
+        SearchResponse<PassengerDocument> nameResponse = client.search(nameOnlyRequest, PassengerDocument.class);
         System.out.println(
             "DEBUG: Found "
                 + nameResponse.hits().hits().size()
@@ -469,20 +434,15 @@ public class BookingCommand implements Runnable {
 
         // Execute search
         final String finalPnr = pnrToUse;
-        SearchRequest searchRequest =
-            SearchRequest.of(
-                s ->
-                    s.index(INDEX_NAME)
-                        .query(
-                            q ->
-                                q.bool(
-                                    b ->
-                                        b.must(m -> m.term(t -> t.field("pnr").value(finalPnr)))
-                                            .must(nameQuery)))
-                        .size(10));
+        SearchRequest searchRequest = SearchRequest.of(
+            s -> s.index(INDEX_NAME)
+                .query(
+                    q -> q.bool(
+                        b -> b.must(m -> m.term(t -> t.field("pnr").value(finalPnr)))
+                            .must(nameQuery)))
+                .size(10));
 
-        SearchResponse<PassengerDocument> response =
-            client.search(searchRequest, PassengerDocument.class);
+        SearchResponse<PassengerDocument> response = client.search(searchRequest, PassengerDocument.class);
 
         System.out.println(
             "DEBUG: Combined query (PNR + Name) returned "
@@ -525,122 +485,104 @@ public class BookingCommand implements Runnable {
       List<String> tokens = nameNormalizer.tokenize(fullName);
 
       return Query.of(
-          q ->
-              q.bool(
-                  b -> {
-                    BoolQuery.Builder builder = new BoolQuery.Builder();
+          q -> q.bool(
+              b -> {
+                BoolQuery.Builder builder = new BoolQuery.Builder();
 
-                    // Strategy 1: Multi-match on tokens (order-agnostic)
-                    builder.should(
-                        s ->
-                            s.multiMatch(
-                                m ->
-                                    m.fields("full_name", "full_name.no_space")
-                                        .query(normalizedName)
-                                        .type(TextQueryType.BestFields)
-                                        .boost(3.0f)));
+                // Strategy 1: Multi-match on tokens (order-agnostic)
+                builder.should(
+                    s -> s.multiMatch(
+                        m -> m.fields("full_name", "full_name.no_space")
+                            .query(normalizedName)
+                            .type(TextQueryType.BestFields)
+                            .boost(3.0f)));
 
-                    // Strategy 2: No-space match
-                    builder.should(
-                        s ->
-                            s.match(
-                                m -> m.field("full_name.no_space").query(noSpaceName).boost(2.5f)));
+                // Strategy 2: No-space match
+                builder.should(
+                    s -> s.match(
+                        m -> m.field("full_name.no_space").query(noSpaceName).boost(2.5f)));
 
-                    // Strategy 3: Reversed order (for cases like "Hernandez William" vs "William
-                    // Hernandez")
-                    if (tokens.size() >= 2) {
-                      // Try reversed order with spaces
-                      List<String> reversedTokens = new ArrayList<>(tokens);
-                      Collections.reverse(reversedTokens);
-                      String reversedOrder = String.join(" ", reversedTokens);
+                // Strategy 3: Reversed order (for cases like "Hernandez William" vs "William
+                // Hernandez")
+                if (tokens.size() >= 2) {
+                  // Try reversed order with spaces
+                  List<String> reversedTokens = new ArrayList<>(tokens);
+                  Collections.reverse(reversedTokens);
+                  String reversedOrder = String.join(" ", reversedTokens);
+                  builder.should(
+                      s -> s.multiMatch(
+                          m -> m.fields("full_name", "full_name.no_space")
+                              .query(reversedOrder)
+                              .type(TextQueryType.BestFields)
+                              .boost(2.8f)));
+
+                  // Try reversed order no-space
+                  String reversedNoSpace = String.join("", reversedTokens);
+                  builder.should(
+                      s -> s.match(
+                          m -> m.field("full_name.no_space")
+                              .query(reversedNoSpace)
+                              .boost(2.3f)));
+                }
+
+                // Strategy 4: Individual token matching (middle name omission)
+                // This handles cases where input has no spaces (single token)
+                // by matching each token from the stored name
+                for (String token : tokens) {
+                  builder.should(
+                      s -> s.match(m -> m.field("full_name").query(token).boost(1.5f)));
+                }
+
+                // Strategy 5: If input is single token (no-space, reversed order like
+                // "HernandezWilliam")
+                // Try splitting it into potential name parts and match both parts
+                if (tokens.size() == 1 && tokens.get(0).length() > 8) {
+                  String singleToken = tokens.get(0);
+                  // Try splitting at middle point and a few variations
+                  int len = singleToken.length();
+                  // Try split points: middle, middle-2, middle+2
+                  int[] splitPoints = {
+                      len / 2, Math.max(4, len / 2 - 2), Math.min(len - 4, len / 2 + 2)
+                  };
+                  for (int splitPoint : splitPoints) {
+                    if (splitPoint >= 4 && splitPoint <= len - 4) {
+                      String part1 = singleToken.substring(0, splitPoint);
+                      String part2 = singleToken.substring(splitPoint);
+                      // Match both parts (order-agnostic) - both must match
                       builder.should(
-                          s ->
-                              s.multiMatch(
-                                  m ->
-                                      m.fields("full_name", "full_name.no_space")
-                                          .query(reversedOrder)
-                                          .type(TextQueryType.BestFields)
-                                          .boost(2.8f)));
-
-                      // Try reversed order no-space
-                      String reversedNoSpace = String.join("", reversedTokens);
+                          s -> s.bool(
+                              b2 -> b2.must(
+                                  m1 -> m1.match(
+                                      m -> m.field("full_name").query(part1)))
+                                  .must(
+                                      m2 -> m2.match(
+                                          m -> m.field("full_name").query(part2)))
+                                  .boost(2.0f)));
+                      // Also try reversed parts order
                       builder.should(
-                          s ->
-                              s.match(
-                                  m ->
-                                      m.field("full_name.no_space")
-                                          .query(reversedNoSpace)
-                                          .boost(2.3f)));
+                          s -> s.bool(
+                              b2 -> b2.must(
+                                  m1 -> m1.match(
+                                      m -> m.field("full_name").query(part2)))
+                                  .must(
+                                      m2 -> m2.match(
+                                          m -> m.field("full_name").query(part1)))
+                                  .boost(2.0f)));
                     }
+                  }
+                }
 
-                    // Strategy 4: Individual token matching (middle name omission)
-                    // This handles cases where input has no spaces (single token)
-                    // by matching each token from the stored name
-                    for (String token : tokens) {
-                      builder.should(
-                          s -> s.match(m -> m.field("full_name").query(token).boost(1.5f)));
-                    }
+                // Strategy 6: Fuzzy match
+                builder.should(
+                    s -> s.match(
+                        m -> m.field("full_name")
+                            .query(normalizedName)
+                            .fuzziness("AUTO")
+                            .boost(1.0f)));
 
-                    // Strategy 5: If input is single token (no-space, reversed order like
-                    // "HernandezWilliam")
-                    // Try splitting it into potential name parts and match both parts
-                    if (tokens.size() == 1 && tokens.get(0).length() > 8) {
-                      String singleToken = tokens.get(0);
-                      // Try splitting at middle point and a few variations
-                      int len = singleToken.length();
-                      // Try split points: middle, middle-2, middle+2
-                      int[] splitPoints = {
-                        len / 2, Math.max(4, len / 2 - 2), Math.min(len - 4, len / 2 + 2)
-                      };
-                      for (int splitPoint : splitPoints) {
-                        if (splitPoint >= 4 && splitPoint <= len - 4) {
-                          String part1 = singleToken.substring(0, splitPoint);
-                          String part2 = singleToken.substring(splitPoint);
-                          // Match both parts (order-agnostic) - both must match
-                          builder.should(
-                              s ->
-                                  s.bool(
-                                      b2 ->
-                                          b2.must(
-                                                  m1 ->
-                                                      m1.match(
-                                                          m -> m.field("full_name").query(part1)))
-                                              .must(
-                                                  m2 ->
-                                                      m2.match(
-                                                          m -> m.field("full_name").query(part2)))
-                                              .boost(2.0f)));
-                          // Also try reversed parts order
-                          builder.should(
-                              s ->
-                                  s.bool(
-                                      b2 ->
-                                          b2.must(
-                                                  m1 ->
-                                                      m1.match(
-                                                          m -> m.field("full_name").query(part2)))
-                                              .must(
-                                                  m2 ->
-                                                      m2.match(
-                                                          m -> m.field("full_name").query(part1)))
-                                              .boost(2.0f)));
-                        }
-                      }
-                    }
-
-                    // Strategy 6: Fuzzy match
-                    builder.should(
-                        s ->
-                            s.match(
-                                m ->
-                                    m.field("full_name")
-                                        .query(normalizedName)
-                                        .fuzziness("AUTO")
-                                        .boost(1.0f)));
-
-                    builder.minimumShouldMatch("1");
-                    return builder;
-                  }));
+                builder.minimumShouldMatch("1");
+                return builder;
+              }));
     }
 
     private void displayResults(SearchResponse<PassengerDocument> response) {
@@ -661,7 +603,8 @@ public class BookingCommand implements Runnable {
       int rank = 1;
       for (Hit<PassengerDocument> hit : hits) {
         PassengerDocument doc = hit.source();
-        if (doc == null) continue;
+        if (doc == null)
+          continue;
 
         double esScore = hit.score() != null ? hit.score() : 0.0;
         double normalizedScore = esScore / 10.0;
@@ -733,9 +676,7 @@ public class BookingCommand implements Runnable {
     @Value("${elasticsearch.port:9200}")
     private int port;
 
-    @Option(
-        names = {"-f", "--force"},
-        description = "Force delete without confirmation")
+    @Option(names = { "-f", "--force" }, description = "Force delete without confirmation")
     private boolean force;
 
     @Override
@@ -747,8 +688,7 @@ public class BookingCommand implements Runnable {
       }
 
       try (RestClient restClient = RestClient.builder(new HttpHost(host, port, "http")).build()) {
-        ElasticsearchTransport transport =
-            new RestClientTransport(restClient, new JacksonJsonpMapper());
+        ElasticsearchTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
         ElasticsearchClient client = new ElasticsearchClient(transport);
 
         DeleteIndexResponse response = client.indices().delete(d -> d.index(INDEX_NAME));

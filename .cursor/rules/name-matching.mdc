@@ -1,0 +1,338 @@
+---
+alwaysApply: false
+description: Asian name matching pattern — multi-strategy fuzzy search with honorific stripping, no-space matching, order-agnostic token similarity, and Elasticsearch index configuration for names from Chinese, Malay, Indian, Indonesian, and Western backgrounds.
+---
+
+# Asian Name Matching Pattern
+
+A reusable pattern for matching passenger/user names across Asian and Western naming conventions. Handles:
+
+- **Order-agnostic**: "Khoo Alex" matches "Alex Khoo Kah Yee"
+- **No-space**: "lethithanh" matches "Le Thi Thanh"
+- **Honorific stripping**: "Encik Ahmad" matches "Ahmad"
+- **Patronyms**: "Ahmad bin Abdullah" treated correctly
+- **Partial / middle-name omission**: "Chen Alex" matches "Chen Kah Yee Alex"
+- **Fuzzy**: "Ahmadbin Ali" matches "Ahmad bin Ali"
+- **Single-token split**: "HernandezWilliam" split at midpoint and matched as two tokens
+
+---
+
+## 1. NameNormalizer — Core Logic
+
+```java
+import java.text.Normalizer;
+import java.util.*;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+public class NameNormalizer {
+
+  // Honorifics to strip before matching (Malay, Indian, Western, Islamic titles)
+  private static final Set<String> HONORIFICS = Set.of(
+      "encik", "puan", "cik", "tuan",
+      "mr", "mrs", "ms", "miss", "dr", "prof",
+      "bin", "binti", "bt", "b", "a/l", "a/p", "ap",
+      "haji", "hajah", "hj", "datuk", "dato", "tan sri", "tun"
+  );
+
+  private static final Pattern SPECIAL_CHARS = Pattern.compile("[^a-z0-9\\s]");
+  private static final Pattern MULTIPLE_SPACES = Pattern.compile("\\s+");
+
+  /** Lowercase, strip accents, remove special chars, strip honorifics */
+  public String normalize(String fullName) {
+    if (fullName == null || fullName.isBlank()) return "";
+
+    String s = fullName.trim().toLowerCase().replace(".", " ").replace(",", " ");
+    s = Normalizer.normalize(s, Normalizer.Form.NFD);   // decompose accents
+    s = SPECIAL_CHARS.matcher(s).replaceAll(" ");
+    s = MULTIPLE_SPACES.matcher(s).replaceAll(" ");
+    s = removeHonorifics(s);
+    return s.trim();
+  }
+
+  /** Split normalized name into individual tokens */
+  public List<String> tokenize(String fullName) {
+    return Arrays.stream(normalize(fullName).split("\\s+"))
+        .filter(t -> !t.isEmpty())
+        .collect(Collectors.toList());
+  }
+
+  /** Remove all spaces from normalized name (for no-space matching) */
+  public String removeSpaces(String fullName) {
+    return normalize(fullName).replaceAll("\\s+", "");
+  }
+
+  /**
+   * Jaccard token similarity.
+   * Returns 1.0 for exact no-space match, otherwise intersection/union of tokens.
+   */
+  public double calculateSimilarity(String name1, String name2) {
+    String ns1 = removeSpaces(name1);
+    String ns2 = removeSpaces(name2);
+    if (ns1.equals(ns2) && !ns1.isEmpty()) return 1.0;
+
+    Set<String> t1 = new HashSet<>(tokenize(name1));
+    Set<String> t2 = new HashSet<>(tokenize(name2));
+
+    if (t1.isEmpty() || t2.isEmpty()) return 0.0;
+
+    // Single no-space token vs multi-token: "lethithanh" == "le thi thanh"
+    if (t1.size() == 1 && t2.size() > 1) {
+      if (t1.iterator().next().equals(String.join("", t2))) return 1.0;
+    }
+    if (t2.size() == 1 && t1.size() > 1) {
+      if (t2.iterator().next().equals(String.join("", t1))) return 1.0;
+    }
+
+    Set<String> intersection = new HashSet<>(t1);
+    intersection.retainAll(t2);
+    Set<String> union = new HashSet<>(t1);
+    union.addAll(t2);
+
+    return (double) intersection.size() / union.size();
+  }
+
+  private String removeHonorifics(String name) {
+    return Arrays.stream(name.split("\\s+"))
+        .filter(token -> !HONORIFICS.contains(token.toLowerCase()))
+        .collect(Collectors.joining(" "));
+  }
+}
+```
+
+---
+
+## 2. Elasticsearch Index Configuration
+
+Place in your index creation JSON. Key parts:
+
+- `name_analyzer`: tokenize + lowercase + asciifolding + honorific stopwords
+- `name_search_analyzer`: same + shingles (bigrams/trigrams for phrase matching)
+- `no_space_analyzer`: keyword tokenizer + lowercase + strip all spaces
+
+```json
+{
+  "settings": {
+    "analysis": {
+      "filter": {
+        "name_stop": {
+          "type": "stop",
+          "stopwords": [
+            "encik","puan","cik","tuan","mr","mrs","ms","miss","dr","prof",
+            "bin","binti","bt","b","a/l","a/p","ap",
+            "haji","hajah","hj","datuk","dato","tan sri","tun"
+          ]
+        },
+        "name_shingle": {
+          "type": "shingle",
+          "min_shingle_size": 2,
+          "max_shingle_size": 3
+        }
+      },
+      "char_filter": {
+        "space_remove": {
+          "type": "pattern_replace",
+          "pattern": "\\s+",
+          "replacement": ""
+        }
+      },
+      "analyzer": {
+        "name_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "asciifolding", "name_stop"]
+        },
+        "name_search_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "asciifolding", "name_stop", "name_shingle"]
+        },
+        "no_space_analyzer": {
+          "type": "custom",
+          "tokenizer": "keyword",
+          "filter": ["lowercase"],
+          "char_filter": ["space_remove"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "full_name": {
+        "type": "text",
+        "analyzer": "name_analyzer",
+        "search_analyzer": "name_search_analyzer",
+        "fields": {
+          "no_space": {
+            "type": "text",
+            "analyzer": "no_space_analyzer"
+          },
+          "keyword": { "type": "keyword" }
+        }
+      },
+      "first_name": { "type": "text", "analyzer": "name_analyzer" },
+      "last_name":  { "type": "text", "analyzer": "name_analyzer" }
+    }
+  }
+}
+```
+
+---
+
+## 3. Multi-Strategy Elasticsearch Query Builder
+
+Six strategies in a single `bool` query, each boosted differently:
+
+```java
+// Requires Elasticsearch Java client (co.elastic.clients)
+private Query buildNameQuery(String fullName) {
+  NameNormalizer normalizer = new NameNormalizer();
+  String normalizedName = normalizer.normalize(fullName);
+  String noSpaceName    = normalizer.removeSpaces(fullName);
+  List<String> tokens   = normalizer.tokenize(fullName);
+
+  return Query.of(q -> q.bool(b -> {
+    BoolQuery.Builder builder = new BoolQuery.Builder();
+
+    // Strategy 1: Best-fields multi-match (order-agnostic, boost 3.0)
+    builder.should(s -> s.multiMatch(m -> m
+        .fields("full_name", "full_name.no_space")
+        .query(normalizedName)
+        .type(TextQueryType.BestFields)
+        .boost(3.0f)));
+
+    // Strategy 2: No-space exact match (boost 2.5)
+    builder.should(s -> s.match(m -> m
+        .field("full_name.no_space")
+        .query(noSpaceName)
+        .boost(2.5f)));
+
+    // Strategy 3: Reversed token order (boost 2.8 normal, 2.3 no-space)
+    if (tokens.size() >= 2) {
+      List<String> rev = new ArrayList<>(tokens);
+      Collections.reverse(rev);
+      String reversedOrder   = String.join(" ", rev);
+      String reversedNoSpace = String.join("", rev);
+
+      builder.should(s -> s.multiMatch(m -> m
+          .fields("full_name", "full_name.no_space")
+          .query(reversedOrder)
+          .type(TextQueryType.BestFields)
+          .boost(2.8f)));
+
+      builder.should(s -> s.match(m -> m
+          .field("full_name.no_space")
+          .query(reversedNoSpace)
+          .boost(2.3f)));
+    }
+
+    // Strategy 4: Individual token matching — handles middle-name omission (boost 1.5 each)
+    for (String token : tokens) {
+      builder.should(s -> s.match(m -> m
+          .field("full_name")
+          .query(token)
+          .boost(1.5f)));
+    }
+
+    // Strategy 5: Single no-space token — try splitting at midpoint variants (boost 2.0)
+    if (tokens.size() == 1 && tokens.get(0).length() > 8) {
+      String single = tokens.get(0);
+      int len = single.length();
+      int[] splits = { len / 2, Math.max(4, len / 2 - 2), Math.min(len - 4, len / 2 + 2) };
+
+      for (int sp : splits) {
+        if (sp >= 4 && sp <= len - 4) {
+          String p1 = single.substring(0, sp);
+          String p2 = single.substring(sp);
+
+          // Both parts must match (order-agnostic)
+          builder.should(s -> s.bool(b2 -> b2
+              .must(m1 -> m1.match(m -> m.field("full_name").query(p1)))
+              .must(m2 -> m2.match(m -> m.field("full_name").query(p2)))
+              .boost(2.0f)));
+
+          // Reversed parts
+          builder.should(s -> s.bool(b2 -> b2
+              .must(m1 -> m1.match(m -> m.field("full_name").query(p2)))
+              .must(m2 -> m2.match(m -> m.field("full_name").query(p1)))
+              .boost(2.0f)));
+        }
+      }
+    }
+
+    // Strategy 6: Fuzzy match for typos (boost 1.0)
+    builder.should(s -> s.match(m -> m
+        .field("full_name")
+        .query(normalizedName)
+        .fuzziness("AUTO")
+        .boost(1.0f)));
+
+    builder.minimumShouldMatch("1");
+    return builder;
+  }));
+}
+```
+
+---
+
+## 4. Post-Search Scoring & Threshold Filtering
+
+After getting ES hits, apply a secondary token-similarity score and filter by threshold:
+
+```java
+double threshold = 0.7; // configurable
+
+for (Hit<T> hit : response.hits().hits()) {
+  double esScore         = hit.score() != null ? hit.score() : 0.0;
+  double normalizedScore = esScore / 10.0;
+  double tokenSimilarity = normalizer.calculateSimilarity(inputName, doc.getFullName());
+  double finalScore      = Math.max(normalizedScore, tokenSimilarity);
+
+  if (finalScore < threshold) continue;
+
+  // determine why it matched
+  String reason = determineMatchReason(inputName, doc.getFullName(), normalizer);
+}
+```
+
+### Match Reason Classifier
+
+```java
+private String determineMatchReason(String input, String stored, NameNormalizer normalizer) {
+  if (normalizer.normalize(input).equals(normalizer.normalize(stored)))
+    return "EXACT_MATCH";
+
+  if (normalizer.removeSpaces(input).equals(normalizer.removeSpaces(stored)))
+    return "NO_SPACE_MATCH";
+
+  Set<String> s1 = new HashSet<>(normalizer.tokenize(input));
+  Set<String> s2 = new HashSet<>(normalizer.tokenize(stored));
+  if (s1.equals(s2))
+    return "ORDER_AGNOSTIC_MATCH";
+
+  return "PARTIAL_MATCH";
+}
+```
+
+---
+
+## 5. Honorifics Reference
+
+Stripped before any comparison. Extend as needed:
+
+| Category        | Honorifics                                                      |
+|-----------------|------------------------------------------------------------------|
+| Western         | mr, mrs, ms, miss, dr, prof                                     |
+| Malay           | encik, puan, cik, tuan, bin, binti, bt, b                       |
+| Islamic titles  | haji, hajah, hj, datuk, dato, tan sri, tun                      |
+| Indian (MY)     | a/l, a/p, ap                                                    |
+
+---
+
+## 6. Usage Guidelines
+
+- **Threshold 0.7** is a good default. Lower to 0.5 for broader fuzzy matches.
+- Always apply `NameNormalizer.normalize()` on **both** the input and stored name before comparing.
+- The Elasticsearch query handles recall; `calculateSimilarity()` handles precision post-filtering.
+- For non-Elasticsearch stores (SQL, in-memory), use `calculateSimilarity()` directly with a scan.
+- Add new honorifics to **both** the `HONORIFICS` set in `NameNormalizer` and the `name_stop` filter in the ES index config, then **reindex**.
